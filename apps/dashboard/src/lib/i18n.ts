@@ -267,6 +267,10 @@ export interface Dict {
     needName: string;
     orMatchRoster: string;
     submissionAlt: string;
+    updateExisting: string;
+    updateSearch: string;
+    updateBtn: string;
+    updatedMsg: string;
   };
   directory: {
     title: string;
@@ -630,6 +634,10 @@ const en: Dict = {
     addByName: "Add",
     needName: "Enter a name.",
     orMatchRoster: "or match to the roster",
+    updateExisting: "Or update someone\u2019s existing photo",
+    updateSearch: "Search a name or ID\u2026",
+    updateBtn: "Use this photo",
+    updatedMsg: "Updated #{id}.",
     submissionAlt: "Submitted photo",
   },
   directory: {
@@ -991,6 +999,10 @@ const he: Dict = {
     addByName: "הוספה",
     needName: "יש להזין שם.",
     orMatchRoster: "או התאמה לרשימה",
+    updateExisting: "או עדכון תמונה של אדם קיים",
+    updateSearch: "חיפוש שם או מספר\u2026",
+    updateBtn: "השתמש בתמונה זו",
+    updatedMsg: "עודכן #{id}.",
     submissionAlt: "תמונה שהוגשה",
   },
   directory: {

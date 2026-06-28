@@ -1,13 +1,82 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, getPhotoBytes, audit } from "@ytc/core";
+import { prisma, getPhotoBytes, audit, validateFace, getCachedDirectory } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
+import { deviceClientById, describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary, fmt } from "@/lib/i18n";
 
 export type ReviewState = { error?: string; ok?: string };
+
+export interface PersonHit {
+  userID: string;
+  name: string;
+  hasFace: boolean;
+}
+
+/** Search existing people on the door (from the cache) to update their photo. */
+export async function searchExistingPeople(query: string): Promise<PersonHit[]> {
+  await requireUser();
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const device = await prisma.device.findFirst({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true },
+  });
+  if (!device) return [];
+  const { rows } = await getCachedDirectory(device.id);
+  return rows
+    .filter((r) => r.name.toLowerCase().includes(q) || r.userID.includes(q))
+    .slice(0, 8)
+    .map((r) => ({ userID: r.userID, name: r.name, hasFace: r.hasFace }));
+}
+
+/** Use a review photo to REPLACE an existing person's face on the door. */
+export async function updatePersonPhoto(
+  _prev: ReviewState,
+  formData: FormData,
+): Promise<ReviewState> {
+  const user = await requireUser();
+  const t = getDictionary(await getLocale());
+  const submissionId = String(formData.get("submissionId") ?? "");
+  const userID = String(formData.get("userID") ?? "").trim();
+  if (!userID) return { error: t.common.error };
+
+  const submission = await prisma.photoSubmission.findUnique({ where: { id: submissionId } });
+  if (!submission) return { error: t.common.error };
+
+  let face;
+  try {
+    face = await validateFace(await getPhotoBytes(submission.imagePath));
+  } catch {
+    return { error: t.common.error };
+  }
+  if (!face.ok || !face.image) return { error: face.reason ?? t.common.error };
+
+  try {
+    const client = await deviceClientById();
+    await client.replaceFaceWeb(userID, face.image);
+  } catch (e) {
+    return { error: describeDeviceError(e, "update photo") };
+  }
+
+  await prisma.photoSubmission.update({
+    where: { id: submissionId },
+    data: { status: "APPROVED", reviewedById: user.id, reviewedAt: new Date() },
+  });
+  await audit({
+    actorId: user.id,
+    action: "face.replace",
+    targetType: "DeviceUser",
+    targetId: userID,
+    meta: { fromSubmission: submissionId },
+  });
+  revalidatePath("/review");
+  return { ok: userID };
+}
 
 const PENDING = ["RECEIVED", "NEEDS_MATCH", "MATCHED"] as const;
 

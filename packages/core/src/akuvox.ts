@@ -432,6 +432,83 @@ export class AkuvoxClient {
     if (!ok) throw new AkuvoxError("Device rejected the edit.", body);
   }
 
+  /**
+   * Replace an EXISTING person's face with a new photo, preserving all their
+   * other fields (name/group/schedule/PIN). Works on ANY UserID (admin action,
+   * no band guard) — used to refresh a face from a review photo. Uses the user's
+   * existing internal id + faceID with faceupload=1 so the device updates that
+   * record's face instead of creating a new one. Verifies faceID > 0 after.
+   */
+  async replaceFaceWeb(
+    userId: string | number,
+    image: Uint8Array,
+    mime: "image/jpeg" | "image/png" = "image/jpeg",
+  ): Promise<void> {
+    const u = await this.findUserWeb(userId);
+    if (!u) throw new AkuvoxError(`User ${userId} not found on the door.`);
+    const g = (k: string, d = ""): string => (u[k] != null ? String(u[k]) : d);
+    const sched = g("Schedule", "1001-1");
+
+    const post = async (session: string) => {
+      const q = new URLSearchParams({
+        UserID: g("userID", String(userId)),
+        name: g("name"),
+        PrivatePIN: g("privatePIN"),
+        RFcard: g("card"),
+        Floor: g("Floor", "0"),
+        WebRelay: g("webRelay", "0"),
+        id: g("id"),
+        faceID: g("faceID", "0"),
+        Phone: g("Phone"),
+        Group: g("Group", "Default"),
+        Priority: g("Priority", "0"),
+        DialAccount: g("DialAccount", "0"),
+        relay: g("relay", "1"),
+        Schedule: sched,
+        Schedule1: sched.split("-")[0] ?? "1001",
+        FaceStatus: "1",
+        faceupload: "1",
+        web: "1",
+        session,
+      });
+      const fd = new FormData();
+      fd.append(
+        "file",
+        new Blob([image as BlobPart], { type: mime }),
+        mime === "image/png" ? "face.png" : "face.jpg",
+      );
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), this.timeout);
+      try {
+        const res = await fetch(`${this.cfg.baseUrl}/web/user/edit?${q}`, {
+          method: "POST",
+          headers: this.cfHeaders(),
+          body: fd,
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on face replace.`);
+        return res.json();
+      } finally {
+        clearTimeout(t);
+      }
+    };
+
+    let body = await post(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await post(await this.webLogin());
+    }
+    const ok =
+      (body?.retcode === 0 || body?.retcode === 1) &&
+      String(body?.message ?? "").toLowerCase() === "ok";
+    if (!ok) throw new AkuvoxError("Device rejected the face update.", body);
+
+    const after = await this.findUserWeb(userId);
+    if (!after || Number(after.faceID ?? 0) <= 0) {
+      throw new AkuvoxError("The door didn't accept that face — try a clearer photo.");
+    }
+  }
+
   // Delete (CONFIRMED from capture): target=user, action=del, data carries the
   // internal device id(s) AND their faceID(s) in parallel arrays.
   //   {type:"select", ids:["842"], faceIDs:["0"]}

@@ -7,6 +7,7 @@ import {
   rejectSubmission,
   type ReviewState,
 } from "./actions";
+import UpdateExistingPerson from "./UpdateExistingPerson";
 import { useT } from "@/components/LocaleProvider";
 
 export interface ReviewItem {
@@ -138,6 +139,9 @@ export default function ReviewCard({
             </div>
           </div>
         ) : null}
+
+        {/* Tertiary: replace an existing person's face with this photo. */}
+        <UpdateExistingPerson submissionId={item.id} />
 
         {error ? <p className="text-sm text-red-600 mt-2">{error}</p> : null}
       </div>
