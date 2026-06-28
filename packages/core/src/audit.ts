@@ -15,6 +15,8 @@ export type AuditAction =
   | "submission.reject"
   | "submission.reassign"
   | "roster.upload"
+  | "roster.add"
+  | "roster.remove"
   | "staff.create"
   | "staff.disable"
   | "auth.login";

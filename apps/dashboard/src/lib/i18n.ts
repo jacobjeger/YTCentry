@@ -144,6 +144,25 @@ export interface Dict {
     imported: string; // "{created}" "{updated}"
     parseError: string;
     empty: string;
+    needName: string;
+    manualTitle: string;
+    mId: string;
+    mIdHint: string;
+    mShiur: string;
+    mPhone: string;
+    add: string;
+    adding: string;
+    addedMsg: string; // "{name}"
+    listTitle: string;
+    statusAwaiting: string;
+    statusMatched: string;
+    statusEnrolled: string;
+    photo: string;
+    noPhoto: string;
+    downloadSelected: string; // "{n}"
+    listEmpty: string;
+    remove: string;
+    search: string;
   };
   review: {
     title: string;
@@ -374,6 +393,25 @@ const en: Dict = {
     imported: "Imported: {created} added, {updated} updated.",
     parseError: "Couldn't read that file. Use CSV or .xlsx with a header row.",
     empty: "That file has no data rows.",
+    needName: "Name is required.",
+    manualTitle: "Add someone manually",
+    mId: "Student ID (optional)",
+    mIdHint: "Leave blank and we'll generate one.",
+    mShiur: "Shiur",
+    mPhone: "Phone",
+    add: "Add to roster",
+    adding: "Adding…",
+    addedMsg: "Added {name}.",
+    listTitle: "Roster",
+    statusAwaiting: "Needs photo",
+    statusMatched: "Photo received",
+    statusEnrolled: "Enrolled",
+    photo: "Photo",
+    noPhoto: "No photo",
+    downloadSelected: "Download {n} photo(s)",
+    listEmpty: "No one on the roster yet. Upload a list or add someone above.",
+    remove: "Remove",
+    search: "Search name or ID…",
   },
   review: {
     title: "Review queue",
@@ -603,6 +641,25 @@ const he: Dict = {
     imported: "יובאו: {created} נוספו, {updated} עודכנו.",
     parseError: "לא ניתן לקרוא את הקובץ. השתמשו ב‑CSV או ב‑xlsx עם שורת כותרת.",
     empty: "אין שורות נתונים בקובץ.",
+    needName: "יש להזין שם.",
+    manualTitle: "הוספת אדם ידנית",
+    mId: "מספר תלמיד (רשות)",
+    mIdHint: "השאירו ריק וניצור מספר אוטומטית.",
+    mShiur: "שיעור",
+    mPhone: "טלפון",
+    add: "הוספה לרשימה",
+    adding: "מוסיף…",
+    addedMsg: "{name} נוסף.",
+    listTitle: "רשימת תלמידים",
+    statusAwaiting: "חסרה תמונה",
+    statusMatched: "התקבלה תמונה",
+    statusEnrolled: "רשום",
+    photo: "תמונה",
+    noPhoto: "אין תמונה",
+    downloadSelected: "הורדת {n} תמונות",
+    listEmpty: "אין עדיין תלמידים ברשימה. העלו רשימה או הוסיפו אדם למעלה.",
+    remove: "הסרה",
+    search: "חיפוש שם או מספר…",
   },
   review: {
     title: "תור לאישור",

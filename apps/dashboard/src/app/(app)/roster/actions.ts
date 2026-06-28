@@ -149,3 +149,81 @@ function fmtImported(template: string, created: number, updated: number): string
     .replace("{created}", String(created))
     .replace("{updated}", String(updated));
 }
+
+// ── Roster view + manual add + photo selection ──────────────────────────────
+
+export interface RosterRow {
+  id: string;
+  studentId: string;
+  fullName: string;
+  shiur: string | null;
+  phone: string | null;
+  status: string; // AWAITING_PHOTO | MATCHED | ENROLLED
+  hasPhoto: boolean;
+  enrolleeId: string | null;
+}
+
+/** The whole roster, newest first, with whether each person has a photo on file. */
+export async function listRoster(): Promise<RosterRow[]> {
+  await requireUser();
+  const entries = await prisma.rosterEntry.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { enrollee: { select: { id: true, photoPath: true } } },
+  });
+  return entries.map((e) => ({
+    id: e.id,
+    studentId: e.studentId,
+    fullName: e.fullName,
+    shiur: e.shiur,
+    phone: e.phone,
+    status: e.status,
+    hasPhoto: !!e.enrollee?.photoPath,
+    enrolleeId: e.enrollee?.id ?? null,
+  }));
+}
+
+export type AddRosterState = { error?: string; ok?: string };
+
+/** Manually add one person to the roster (on top of CSV import). */
+export async function addRosterEntry(
+  _prev: AddRosterState,
+  formData: FormData,
+): Promise<AddRosterState> {
+  const user = await requireUser();
+  const t = getDictionary(await getLocale());
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  let studentId = String(formData.get("studentId") ?? "").trim();
+  const shiur = String(formData.get("shiur") ?? "").trim() || null;
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+  if (!fullName) return { error: t.roster.needName ?? "Name is required." };
+
+  // studentId is optional for a manual add — synthesize a stable one if blank.
+  if (!studentId) studentId = `M-${normalizeName(fullName).replace(/\s+/g, "-")}`;
+
+  const data = { fullName, normalizedName: normalizeName(fullName), shiur, phone };
+  try {
+    await prisma.rosterEntry.upsert({
+      where: { studentId },
+      create: { studentId, aliases: [], ...data },
+      update: data,
+    });
+  } catch {
+    return { error: t.common.error };
+  }
+  await audit({
+    actorId: user.id,
+    action: "roster.add",
+    targetType: "RosterEntry",
+    targetId: studentId,
+    meta: { fullName },
+  });
+  return { ok: fullName };
+}
+
+export async function deleteRosterEntry(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await prisma.rosterEntry.deleteMany({ where: { id } });
+  await audit({ actorId: user.id, action: "roster.remove", targetType: "RosterEntry", targetId: id });
+}
