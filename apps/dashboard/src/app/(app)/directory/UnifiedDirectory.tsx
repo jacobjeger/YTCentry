@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   loadFullDirectory,
+  refreshDirectory,
   listDoors,
   deleteFromDoor,
   repushEnrollee,
@@ -11,6 +12,17 @@ import {
   type DirState,
   type DoorOption,
 } from "./actions";
+
+const PAGE_SIZE = 50;
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return "";
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  return hrs < 24 ? `${hrs}h ago` : `${Math.round(hrs / 24)}d ago`;
+}
 import { useActionState, useRef } from "react";
 import { useT } from "@/components/LocaleProvider";
 import { fmt } from "@/lib/i18n";
@@ -23,6 +35,27 @@ export default function UnifiedDirectory() {
   const [sort, setSort] = useState<"newest" | "oldest" | "az" | "za">("newest");
   const [doors, setDoors] = useState<DoorOption[]>([]);
   const [door, setDoor] = useState<string>("");
+  const [syncedAt, setSyncedAt] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function reload() {
+    setRows(null);
+    setError(null);
+    const res = await loadFullDirectory(door || undefined);
+    if (res.error) setError(res.error);
+    else {
+      setRows(res.rows ?? []);
+      setSyncedAt(res.syncedAt ?? null);
+    }
+  }
+
+  async function doRefresh() {
+    setRefreshing(true);
+    await refreshDirectory(door || undefined);
+    await reload();
+    setRefreshing(false);
+  }
 
   useEffect(() => {
     listDoors().then((ds) => {
@@ -38,12 +71,20 @@ export default function UnifiedDirectory() {
     loadFullDirectory(door || undefined).then((res) => {
       if (!alive) return;
       if (res.error) setError(res.error);
-      else setRows(res.rows ?? []);
+      else {
+        setRows(res.rows ?? []);
+        setSyncedAt(res.syncedAt ?? null);
+      }
     });
     return () => {
       alive = false;
     };
   }, [door]);
+
+  // Reset to page 1 when the filter/sort/search changes.
+  useEffect(() => {
+    setPage(0);
+  }, [q, sort, door]);
 
   const filtered = (rows ?? [])
     .filter((r) => {
@@ -62,6 +103,10 @@ export default function UnifiedDirectory() {
           return b.name.localeCompare(a.name);
       }
     });
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   return (
     <div>
@@ -111,12 +156,22 @@ export default function UnifiedDirectory() {
             <span className="text-sm text-stone-500 whitespace-nowrap">
               {fmt(t.directory.totalOnDoor, { n: rows.length })}
             </span>
+            <button
+              onClick={doRefresh}
+              disabled={refreshing}
+              className="text-sm text-bronze-dark hover:underline disabled:opacity-50"
+            >
+              {refreshing ? t.directory.syncing : t.directory.refresh}
+            </button>
+            {syncedAt ? (
+              <span className="text-xs text-stone-400">{timeAgo(syncedAt)}</span>
+            ) : null}
           </div>
 
           <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-            <div className="overflow-x-auto max-h-[72vh]">
+            <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-stone-50 text-stone-500 sticky top-0">
+                <thead className="bg-stone-50 text-stone-500">
                   <tr>
                     <th className="px-4 py-3 text-start font-medium">{t.directory.name}</th>
                     <th className="px-4 py-3 text-start font-medium">{t.directory.doorId}</th>
@@ -126,12 +181,33 @@ export default function UnifiedDirectory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  {filtered.map((r) => (
+                  {paged.map((r) => (
                     <Row key={r.userID} r={r} deviceId={door} />
                   ))}
                 </tbody>
               </table>
             </div>
+            {pageCount > 1 ? (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-stone-100 text-sm">
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  className="rounded-lg px-3 py-1.5 hover:bg-stone-100 disabled:opacity-40"
+                >
+                  ←
+                </button>
+                <span className="text-stone-500">
+                  {safePage + 1} / {pageCount}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={safePage >= pageCount - 1}
+                  className="rounded-lg px-3 py-1.5 hover:bg-stone-100 disabled:opacity-40"
+                >
+                  →
+                </button>
+              </div>
+            ) : null}
           </div>
         </>
       )}

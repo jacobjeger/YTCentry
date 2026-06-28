@@ -225,7 +225,7 @@ export default function EnrollForm() {
             {mode === "upload" ? (
               <input
                 type="file"
-                accept="image/jpeg,image/png"
+                accept="image/*"
                 onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
                 className="text-sm"
               />

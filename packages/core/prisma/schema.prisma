@@ -121,6 +121,20 @@ model Device {
   enrollees     EnrolleeDevice[]
 }
 
+/// Cached snapshot of a door's full user directory, refreshed by the pusher so
+/// the dashboard Directory loads instantly (instead of pulling ~800 live).
+model DeviceUserCache {
+  id        String   @id @default(cuid())
+  deviceId  String
+  userID    String
+  name      String
+  hasFace   Boolean  @default(false)
+  syncedAt  DateTime @default(now())
+
+  @@unique([deviceId, userID])
+  @@index([deviceId])
+}
+
 /// Which doors a person is enrolled on, with per-door push status.
 model EnrolleeDevice {
   id         String         @id @default(cuid())

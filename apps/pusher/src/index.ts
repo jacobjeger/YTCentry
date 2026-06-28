@@ -13,6 +13,8 @@ import {
   claimJobs,
   completeJob,
   cleanupExpiredDoorSubmissions,
+  getActiveDevices,
+  syncDeviceDirectory,
   type ClaimedJob,
 } from "@ytc/core";
 import { loadConfig } from "./config";
@@ -109,11 +111,31 @@ async function cleanupLoop() {
   }
 }
 
+/** Keep the dashboard's directory cache fresh (every 5 min, each active door). */
+async function directorySyncLoop() {
+  while (running) {
+    try {
+      for (const d of await getActiveDevices()) {
+        try {
+          const n = await syncDeviceDirectory(d);
+          console.log(`[sync] ${d.name}: ${n} users cached`);
+        } catch (e) {
+          console.warn(`[sync] ${d.name} failed:`, e instanceof Error ? e.message : e);
+        }
+      }
+    } catch (e) {
+      console.error("[sync loop error]", e);
+    }
+    await sleep(5 * 60 * 1000);
+  }
+}
+
 async function main() {
   console.log(
     `ytc pusher up — ${cfg.dryRun ? "DRY_RUN (no device calls)" : `target ${cfg.akuvox.baseUrl}`}`,
   );
   cleanupLoop();
+  directorySyncLoop();
 
   // Door snapshots are device READS via the /web session (only need the web
   // password + a reachable baseUrl) — independent of DRY_RUN, which only mocks

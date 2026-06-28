@@ -7,6 +7,8 @@ import {
   putPhoto,
   audit,
   ID_BAND_START,
+  getCachedDirectory,
+  syncDeviceDirectory,
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { photoKey } from "@/lib/enroll";
@@ -42,26 +44,46 @@ export interface DirRow {
 }
 
 /** One unified view: EVERYONE on the door (live), merged with our records. */
+async function resolveDeviceId(deviceId?: string): Promise<string | null> {
+  if (deviceId) return deviceId;
+  const first = await prisma.device.findFirst({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true },
+  });
+  return first?.id ?? null;
+}
+
+/** Read the door directory from the local CACHE (instant). Falls back to a live
+ *  sync the first time a door has no cache yet. */
 export async function loadFullDirectory(deviceId?: string): Promise<{
   rows?: DirRow[];
   total?: number;
+  syncedAt?: string | null;
   error?: string;
 }> {
   await requireUser();
   try {
-    const client = await deviceClientById(deviceId);
-    const [users, enrollees] = await Promise.all([
-      client.getAllUsersViaWeb(),
-      prisma.enrollee.findMany(),
-    ]);
+    const id = await resolveDeviceId(deviceId);
+    if (!id) return { error: "No door configured. Add one in Settings." };
+
+    let cached = await getCachedDirectory(id);
+    if (cached.rows.length === 0) {
+      // first load for this door — populate the cache live, then read it
+      const device = await prisma.device.findUnique({ where: { id } });
+      if (device) await syncDeviceDirectory(device);
+      cached = await getCachedDirectory(id);
+    }
+
+    const enrollees = await prisma.enrollee.findMany();
     const byId = new Map(enrollees.map((e) => [String(e.akuvoxUserId), e]));
-    const rows: DirRow[] = users
+    const rows: DirRow[] = cached.rows
       .map((u) => {
-        const e = byId.get(String(u.userID));
+        const e = byId.get(u.userID);
         return {
           userID: u.userID,
           name: u.name,
-          hasFaceOnDevice: Number(u.faceID ?? 0) > 0,
+          hasFaceOnDevice: u.hasFace,
           managed: !!e,
           legacy: Number(u.userID) < ID_BAND_START,
           enrolleeId: e?.id,
@@ -71,9 +93,23 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
         };
       })
       .sort((a, b) => Number(a.userID) - Number(b.userID));
-    return { rows, total: rows.length };
+    return { rows, total: rows.length, syncedAt: cached.syncedAt?.toISOString() ?? null };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to load the door directory." };
+  }
+}
+
+/** Force a fresh pull from the door into the cache (the Refresh button). */
+export async function refreshDirectory(deviceId?: string): Promise<{ error?: string }> {
+  await requireUser();
+  try {
+    const id = await resolveDeviceId(deviceId);
+    if (!id) return { error: "No door configured." };
+    const device = await prisma.device.findUnique({ where: { id } });
+    if (device) await syncDeviceDirectory(device);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Sync failed." };
   }
 }
 

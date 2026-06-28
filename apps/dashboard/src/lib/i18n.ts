@@ -191,6 +191,8 @@ export interface Dict {
     sortOldest: string;
     sortNameAz: string;
     sortNameZa: string;
+    refresh: string;
+    syncing: string;
   };
   settings: {
     title: string;
@@ -251,9 +253,9 @@ const en: Dict = {
     pushFailed: "Push failed",
     addTitle: "Add a person",
     addBody: "Type a name, snap or upload a photo, and send them to the door.",
-    reviewTitle: "Review emailed photos",
+    reviewTitle: "Review photos",
     reviewBody:
-      "Match incoming photos to the roster and approve them for enrollment.",
+      "Approve incoming photos (emailed or denied door scans) and add them to the door.",
   },
   enroll: {
     title: "Add a person",
@@ -399,6 +401,8 @@ const en: Dict = {
     sortOldest: "Oldest first",
     sortNameAz: "Name A–Z",
     sortNameZa: "Name Z–A",
+    refresh: "Refresh",
+    syncing: "Syncing…",
   },
   settings: {
     title: "Settings",
@@ -458,8 +462,8 @@ const he: Dict = {
     pushFailed: "שליחה נכשלה",
     addTitle: "הוספת אדם",
     addBody: "הקלידו שם, צלמו או העלו תמונה, ושלחו אותו לדלת.",
-    reviewTitle: "אישור תמונות מהמייל",
-    reviewBody: "התאמת תמונות נכנסות לרשימה ואישורן לרישום.",
+    reviewTitle: "אישור תמונות",
+    reviewBody: "אישור תמונות נכנסות (מהמייל או סריקות שנדחו) והוספתן לדלת.",
   },
   enroll: {
     title: "הוספת אדם",
@@ -601,6 +605,8 @@ const he: Dict = {
     sortOldest: "הישנים ביותר",
     sortNameAz: "שם א׳–ת׳",
     sortNameZa: "שם ת׳–א׳",
+    refresh: "רענון",
+    syncing: "מסנכרן…",
   },
   settings: {
     title: "הגדרות",

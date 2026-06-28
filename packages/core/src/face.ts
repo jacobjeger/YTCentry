@@ -50,7 +50,11 @@ export async function validateFace(input: Uint8Array): Promise<FaceValidation> {
   try {
     img = sharp(input, { failOn: "error" }).rotate(); // rotate() = auto-orient via EXIF
   } catch {
-    return { ok: false, reason: "Not a readable image." };
+    return {
+      ok: false,
+      reason:
+        "Couldn't read that image format. Use a JPG or PNG photo (an iPhone HEIC may need converting).",
+    };
   }
 
   const meta = await img.metadata();
