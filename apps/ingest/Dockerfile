@@ -2,6 +2,10 @@
 # Railway: set RAILWAY_DOCKERFILE_PATH=apps/ingest/Dockerfile on the service.
 FROM node:22-slim
 
+# OpenSSL for Prisma's query engine (slim images omit it).
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Keep dev deps (tsx runs the TypeScript entrypoint at runtime).
