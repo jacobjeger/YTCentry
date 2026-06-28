@@ -45,19 +45,43 @@ export function setFaceDetector(fn: FaceDetector) {
   _detect = fn;
 }
 
+/** iPhone HEIC/HEIF → JPEG so the upload doesn't fail. Pure-JS, no native deps. */
+async function tryHeicToJpeg(input: Uint8Array): Promise<Uint8Array | null> {
+  try {
+    const heicConvert = (await import("heic-convert")).default;
+    const out = await heicConvert({
+      buffer: Buffer.from(input),
+      format: "JPEG",
+      quality: 0.92,
+    });
+    return new Uint8Array(out);
+  } catch {
+    return null;
+  }
+}
+
+const BAD_FORMAT =
+  "Couldn't read that photo. Use a JPG, PNG, BMP, or an iPhone (HEIC) photo.";
+
 export async function validateFace(input: Uint8Array): Promise<FaceValidation> {
   let img: sharp.Sharp;
+  let meta: sharp.Metadata;
+  // sharp handles jpg/png/bmp/webp/gif/tiff; HEIC usually can't be decoded, so
+  // on failure we transparently convert HEIC→JPEG and retry before giving up.
   try {
     img = sharp(input, { failOn: "error" }).rotate(); // rotate() = auto-orient via EXIF
+    meta = await img.metadata();
   } catch {
-    return {
-      ok: false,
-      reason:
-        "Couldn't read that image format. Use a JPG or PNG photo (an iPhone HEIC may need converting).",
-    };
+    const jpeg = await tryHeicToJpeg(input);
+    if (!jpeg) return { ok: false, reason: BAD_FORMAT };
+    try {
+      img = sharp(jpeg, { failOn: "error" }).rotate();
+      meta = await img.metadata();
+    } catch {
+      return { ok: false, reason: BAD_FORMAT };
+    }
   }
 
-  const meta = await img.metadata();
   if (!meta.width || !meta.height) {
     return { ok: false, reason: "Image has no dimensions." };
   }
