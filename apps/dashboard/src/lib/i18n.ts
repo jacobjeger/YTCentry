@@ -184,6 +184,10 @@ export interface Dict {
     legacy: string;
     totalOnDoor: string; // "{n}"
     back: string;
+    sortNewest: string;
+    sortOldest: string;
+    sortNameAz: string;
+    sortNameZa: string;
   };
   settings: {
     title: string;
@@ -385,6 +389,10 @@ const en: Dict = {
     legacy: "Legacy",
     totalOnDoor: "{n} people on the door",
     back: "← Back to directory",
+    sortNewest: "Newest first",
+    sortOldest: "Oldest first",
+    sortNameAz: "Name A–Z",
+    sortNameZa: "Name Z–A",
   },
   settings: {
     title: "Settings",
@@ -580,6 +588,10 @@ const he: Dict = {
     legacy: "ישן",
     totalOnDoor: "{n} אנשים בדלת",
     back: "← חזרה למדריך",
+    sortNewest: "החדשים ביותר",
+    sortOldest: "הישנים ביותר",
+    sortNameAz: "שם א׳–ת׳",
+    sortNameZa: "שם ת׳–א׳",
   },
   settings: {
     title: "הגדרות",

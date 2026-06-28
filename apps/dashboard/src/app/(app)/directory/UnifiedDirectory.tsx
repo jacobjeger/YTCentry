@@ -20,6 +20,7 @@ export default function UnifiedDirectory() {
   const [rows, setRows] = useState<DirRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest" | "az" | "za">("newest");
   const [doors, setDoors] = useState<DoorOption[]>([]);
   const [door, setDoor] = useState<string>("");
 
@@ -44,10 +45,23 @@ export default function UnifiedDirectory() {
     };
   }, [door]);
 
-  const filtered = (rows ?? []).filter((r) => {
-    const s = q.trim().toLowerCase();
-    return !s || r.name.toLowerCase().includes(s) || r.userID.includes(s);
-  });
+  const filtered = (rows ?? [])
+    .filter((r) => {
+      const s = q.trim().toLowerCase();
+      return !s || r.name.toLowerCase().includes(s) || r.userID.includes(s);
+    })
+    .sort((a, b) => {
+      switch (sort) {
+        case "newest":
+          return Number(b.userID) - Number(a.userID);
+        case "oldest":
+          return Number(a.userID) - Number(b.userID);
+        case "az":
+          return a.name.localeCompare(b.name);
+        case "za":
+          return b.name.localeCompare(a.name);
+      }
+    });
 
   return (
     <div>
@@ -84,6 +98,16 @@ export default function UnifiedDirectory() {
               placeholder={t.directory.searchDevice}
               className="flex-1 min-w-[200px] max-w-sm rounded-lg border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bronze"
             />
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              className="rounded-lg border border-stone-300 px-3 py-2 bg-white text-sm"
+            >
+              <option value="newest">{t.directory.sortNewest}</option>
+              <option value="oldest">{t.directory.sortOldest}</option>
+              <option value="az">{t.directory.sortNameAz}</option>
+              <option value="za">{t.directory.sortNameZa}</option>
+            </select>
             <span className="text-sm text-stone-500 whitespace-nowrap">
               {fmt(t.directory.totalOnDoor, { n: rows.length })}
             </span>
