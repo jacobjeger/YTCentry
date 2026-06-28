@@ -49,6 +49,27 @@ export interface Dict {
     addTime: string;
     revoke: string;
     createdPin: string; // "{label}" "{pin}"
+    copy: string;
+    copied: string;
+    customPin: string;
+    customPinHint: string;
+    needLabel: string;
+    needDoor: string;
+    badPin: string;
+    createFailed: string;
+  };
+  account: {
+    title: string;
+    subtitle: string;
+    current: string;
+    newPass: string;
+    confirm: string;
+    change: string;
+    changing: string;
+    changed: string;
+    wrongCurrent: string;
+    mismatch: string;
+    tooShort: string;
   };
   login: {
     title: string;
@@ -303,6 +324,27 @@ const en: Dict = {
     addTime: "+12h",
     revoke: "Revoke",
     createdPin: "{label}: PIN {pin}",
+    copy: "Copy",
+    copied: "Copied!",
+    customPin: "Choose the code (optional)",
+    customPinHint: "4–6 digits. Leave blank for a random code.",
+    needLabel: "Enter who it's for.",
+    needDoor: "Pick a door.",
+    badPin: "The code must be 4–6 digits.",
+    createFailed: "Couldn't create the code.",
+  },
+  account: {
+    title: "Your account",
+    subtitle: "Change your password.",
+    current: "Current password",
+    newPass: "New password",
+    confirm: "Confirm new password",
+    change: "Change password",
+    changing: "Saving…",
+    changed: "Password changed.",
+    wrongCurrent: "Current password is incorrect.",
+    mismatch: "The new passwords don't match.",
+    tooShort: "Use at least 8 characters.",
   },
   login: {
     title: "YTC Entry",
@@ -566,6 +608,27 @@ const he: Dict = {
     addTime: "‎+12 שעות",
     revoke: "ביטול",
     createdPin: "{label}: קוד {pin}",
+    copy: "העתקה",
+    copied: "הועתק!",
+    customPin: "בחירת קוד (רשות)",
+    customPinHint: "‎4–6 ספרות. השאירו ריק לקוד אקראי.",
+    needLabel: "הזינו עבור מי.",
+    needDoor: "בחרו דלת.",
+    badPin: "‎הקוד חייב להיות 4–6 ספרות.",
+    createFailed: "לא ניתן ליצור את הקוד.",
+  },
+  account: {
+    title: "החשבון שלי",
+    subtitle: "שינוי הסיסמה.",
+    current: "סיסמה נוכחית",
+    newPass: "סיסמה חדשה",
+    confirm: "אישור סיסמה חדשה",
+    change: "שינוי סיסמה",
+    changing: "שומר…",
+    changed: "הסיסמה שונתה.",
+    wrongCurrent: "הסיסמה הנוכחית שגויה.",
+    mismatch: "הסיסמאות החדשות אינן תואמות.",
+    tooShort: "השתמשו בלפחות 8 תווים.",
   },
   login: {
     title: "YTC Entry",

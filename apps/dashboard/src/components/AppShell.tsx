@@ -67,9 +67,13 @@ export default function AppShell({
           </nav>
           <div className="flex items-center gap-3 shrink-0">
             <LanguageSwitcher />
-            <span className="text-xs text-stone-500 hidden md:block">
+            <Link
+              href="/account"
+              className="text-xs text-stone-500 hover:text-bronze-dark hidden md:block"
+              title={t.account.title}
+            >
               {email}
-            </span>
+            </Link>
             <form action={logout}>
               <button
                 type="submit"

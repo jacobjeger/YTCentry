@@ -91,11 +91,35 @@ export default function TempPinsManager() {
             </select>
           </label>
         </div>
+        <label className="flex flex-col gap-1 max-w-xs">
+          <span className="text-sm font-medium text-stone-700">{t.temp.customPin}</span>
+          <input
+            name="pin"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            placeholder="••••"
+            className={input}
+          />
+          <span className="text-xs text-stone-400">{t.temp.customPinHint}</span>
+        </label>
         {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
         {state.ok ? (
-          <p className="text-sm text-green-700">
-            {fmt(t.temp.createdPin, { label: state.ok.label, pin: state.ok.pin })}
-          </p>
+          <div className="rounded-lg bg-green-50 border border-green-200 p-4 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs text-green-700">{state.ok.label}</div>
+              <div className="text-3xl font-mono font-bold tracking-widest text-green-800">
+                {state.ok.pin}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(state.ok!.pin)}
+              className="rounded-lg border border-green-300 bg-white px-3 py-2 text-sm text-green-800 hover:bg-green-100"
+            >
+              {t.temp.copy}
+            </button>
+          </div>
         ) : null}
         <button
           type="submit"
@@ -125,7 +149,14 @@ export default function TempPinsManager() {
                       {p.deviceName} · #{p.userId}
                     </div>
                   </div>
-                  <div className="font-mono text-lg tracking-wider">{p.pin}</div>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(p.pin)}
+                    title={t.temp.copy}
+                    className="font-mono text-lg tracking-wider hover:text-bronze-dark cursor-pointer"
+                  >
+                    {p.pin}
+                  </button>
                   <div className="text-sm text-stone-500 w-28 text-end">
                     {left ? fmt(t.temp.expiresIn, { t: left }) : t.temp.expired}
                   </div>

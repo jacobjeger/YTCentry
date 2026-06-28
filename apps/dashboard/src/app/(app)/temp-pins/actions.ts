@@ -11,6 +11,8 @@ import {
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { describeDeviceError } from "@/lib/device";
+import { getLocale } from "@/lib/locale";
+import { getDictionary } from "@/lib/i18n";
 
 export interface TempPinRow {
   id: string;
@@ -54,16 +56,22 @@ export async function createTempPinAction(
   formData: FormData,
 ): Promise<TempState> {
   const user = await requireUser();
+  const t = getDictionary(await getLocale());
   const label = String(formData.get("label") ?? "").trim();
   const hours = Math.max(1, Math.min(720, Number(formData.get("hours") ?? 12)));
   const deviceId = String(formData.get("deviceId") ?? "");
-  if (!label) return { error: "Enter a label (who it's for)." };
-  if (!deviceId) return { error: "Pick a door." };
+  const customPin = String(formData.get("pin") ?? "").trim();
+  if (!label) return { error: t.temp.needLabel };
+  if (!deviceId) return { error: t.temp.needDoor };
+  if (customPin && !/^\d{4,6}$/.test(customPin)) {
+    return { error: t.temp.badPin };
+  }
   try {
     const { pin, userId, expiresAt } = await createTempPin({
       deviceId,
       label,
       hours,
+      pin: customPin || undefined,
       createdById: user.id,
     });
     await audit({

@@ -19,6 +19,7 @@ export type AuditAction =
   | "roster.remove"
   | "staff.create"
   | "staff.disable"
+  | "staff.password"
   | "auth.login";
 
 export async function audit(opts: {
