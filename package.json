@@ -1,0 +1,22 @@
+{
+  "name": "ytc-entry",
+  "private": true,
+  "version": "0.1.0",
+  "description": "YTC Entry — face enrollment dashboard for the Akuvox E16C door reader",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/dashboard",
+    "build": "npm run build --workspace packages/core && npm run build --workspace apps/dashboard",
+    "db:generate": "npm run generate --workspace packages/core",
+    "db:migrate": "npm run migrate --workspace packages/core",
+    "db:seed": "npm run seed --workspace packages/core",
+    "agent": "npm run start --workspace apps/agent",
+    "ingest": "npm run start --workspace apps/ingest"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@ytc/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "On-site pusher agent. Runs inside the yeshiva LAN, polls the dashboard PushJob queue, writes to the E16C. Holds the device credential locally.",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@ytc/core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

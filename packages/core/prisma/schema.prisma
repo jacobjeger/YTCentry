@@ -1,0 +1,173 @@
+// YTC Entry — face enrollment dashboard
+// Postgres + Prisma. Run `git pull` before editing in the repo.
+//
+// Core idea: TWO entry points (emailed photo, manual staff upload) feed ONE
+// enrollment core. The cloud dashboard never talks to the door directly
+// (Railway/Vercel can't reach 10.0.0.215 on the yeshiva LAN). Instead it writes
+// PushJob rows; an on-site agent polls, executes against the E16C over LAN, and
+// reports status back. See CLAUDE.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN // IT (Akiva): device config, env, audit, legacy view
+  STAFF // office: add people, upload faces, approve, re-push
+}
+
+enum EnrolleeSource {
+  EMAIL  // matched to roster from an emailed photo
+  MANUAL // office staff entered + uploaded directly
+  ROSTER // pre-created from roster upload, awaiting a photo
+}
+
+enum EnrolleeStatus {
+  DRAFT        // person created, no valid face yet
+  PENDING_PUSH // approved + face valid, queued for the door
+  PUSHED       // confirmed on the E16C (verified by get)
+  PUSH_FAILED  // agent reported an error; see lastError
+  REMOVED      // deleted from the door (within automation band)
+}
+
+enum SubmissionStatus {
+  RECEIVED
+  NEEDS_MATCH // ambiguous / low score -> human picks from candidates
+  MATCHED     // tied to a roster entry, awaiting approval
+  APPROVED    // promoted to an Enrollee + queued
+  REJECTED    // bad photo / not a talmid
+}
+
+enum PushAction {
+  ADD
+  UPDATE_FACE
+  DELETE
+}
+
+enum PushStatus {
+  QUEUED
+  CLAIMED
+  DONE
+  FAILED
+}
+
+model StaffUser {
+  id           String   @id @default(cuid())
+  email        String   @unique // login identifier
+  name         String
+  passwordHash String           // argon2/bcrypt; admin sets it, hand out the password
+  active       Boolean  @default(true)
+  role         Role     @default(STAFF)
+  createdAt    DateTime @default(now())
+
+  enrollees Enrollee[]      @relation("createdBy")
+  reviews   PhotoSubmission[] @relation("reviewedBy")
+  audits    AuditLog[]
+}
+
+/// A person enrolled on the door by THIS system. Always in the automation
+/// UserID band (>= 100000). The 832 legacy Hebrew records (< 100000) are never
+/// represented here and never touched.
+model Enrollee {
+  id           String         @id @default(cuid())
+  akuvoxUserId Int            @unique // >= 100000, allocated server-side
+  displayName  String                 // English
+  studentId    String?        @unique
+  shiur        String?
+  phone        String?
+  source       EnrolleeSource
+  photoPath    String?                // object storage key (R2/Supabase)
+  faceUrl      String?                // value stored in the device's FaceUrl field
+  scheduleRelay String        @default("1001-1") // 24h on the single relay
+  status       EnrolleeStatus @default(DRAFT)
+  lastError    String?
+  pushedAt     DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  createdBy    StaffUser?     @relation("createdBy", fields: [createdById], references: [id])
+  createdById  String?
+  rosterEntry  RosterEntry?
+  pushJobs     PushJob[]
+
+  @@index([status])
+}
+
+/// The incoming-talmid list uploaded by staff (CSV/XLSX). Spine for matching
+/// emailed photos. Names are English now (normalizedName via normalizeName()).
+model RosterEntry {
+  id             String   @id @default(cuid())
+  studentId      String   @unique
+  fullName       String
+  normalizedName String   // keep in sync with normalizeName() on write
+  aliases        String[] @default([]) // catches Yitzchok/Yitzchak etc.
+  shiur          String?
+  phone          String?
+  status         String   @default("AWAITING_PHOTO") // AWAITING_PHOTO|MATCHED|ENROLLED
+  enrollee       Enrollee? @relation(fields: [enrolleeId], references: [id])
+  enrolleeId     String?  @unique
+  createdAt      DateTime @default(now())
+
+  submissions    PhotoSubmission[]
+
+  // trigram index added via raw migration: gin (normalized_name gin_trgm_ops)
+}
+
+/// A photo that arrived at ytc.entry@gmail.com.
+model PhotoSubmission {
+  id             String           @id @default(cuid())
+  gmailMessageId String           @unique // dedupe ingestion
+  fromAddress    String
+  subjectRaw     String?
+  parsedName     String?
+  imagePath      String                    // object storage key
+  faceValid      Boolean?
+  faceNote       String?
+  matchCandidates Json            @default("[]") // [{studentId,name,score}]
+  status         SubmissionStatus @default(RECEIVED)
+  reviewedBy     StaffUser?       @relation("reviewedBy", fields: [reviewedById], references: [id])
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime         @default(now())
+
+  rosterEntry    RosterEntry?     @relation(fields: [rosterEntryId], references: [id])
+  rosterEntryId  String?
+
+  @@index([status])
+}
+
+/// Work handed from the cloud dashboard to the on-site pusher agent.
+/// The agent polls QUEUED, sets CLAIMED, executes against the E16C, then DONE/FAILED.
+model PushJob {
+  id          String     @id @default(cuid())
+  enrollee    Enrollee   @relation(fields: [enrolleeId], references: [id])
+  enrolleeId  String
+  action      PushAction
+  payload     Json       // snapshot: name, scheduleRelay, photo ref, etc.
+  status      PushStatus @default(QUEUED)
+  attempts    Int        @default(0)
+  lastError   String?
+  claimedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([status])
+}
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  actor      StaffUser? @relation(fields: [actorId], references: [id])
+  actorId    String?
+  action     String     // "enrollee.create", "face.push", "enrollee.remove", ...
+  targetType String
+  targetId   String
+  meta       Json       @default("{}")
+  createdAt  DateTime   @default(now())
+
+  @@index([targetType, targetId])
+}

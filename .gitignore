@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+.pnp.*
+
+# builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# prisma
+packages/core/src/generated/
+
+# env / secrets — NEVER commit
+.env
+.env.*
+!.env.example
+.doppler.json
+
+# logs
+*.log
+npm-debug.log*
+
+# os
+.DS_Store
+
+# local data / test artifacts
+docker-data/
+tmp/
