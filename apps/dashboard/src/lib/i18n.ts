@@ -140,6 +140,9 @@ export interface Dict {
     noCandidates: string;
     sourceDoor: string;
     sourceEmail: string;
+    filterAll: string;
+    filterEmail: string;
+    filterDenied: string;
   };
   directory: {
     title: string;
@@ -316,6 +319,9 @@ const en: Dict = {
     noCandidates: "No roster matches. Enter a student ID to match.",
     sourceDoor: "Door scan",
     sourceEmail: "Email",
+    filterAll: "All",
+    filterEmail: "Email",
+    filterDenied: "Denied scans",
   },
   directory: {
     title: "Directory",
@@ -489,6 +495,9 @@ const he: Dict = {
     noCandidates: "אין התאמות ברשימה. הזינו מספר תלמיד להתאמה.",
     sourceDoor: "סריקה בדלת",
     sourceEmail: "מייל",
+    filterAll: "הכל",
+    filterEmail: "מייל",
+    filterDenied: "סריקות שנדחו",
   },
   directory: {
     title: "מדריך",
