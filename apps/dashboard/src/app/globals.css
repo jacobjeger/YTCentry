@@ -1,26 +1,25 @@
 @import "tailwindcss";
 
+/* Office-staff tool: light, friendly, high-contrast, big touch targets.
+   Accent = the Toras Chaim bronze. No dark-mode auto-switch — staff use this in
+   a bright office and the forms read better on white. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f6f3;
+  --foreground: #1c1917;
+  --bronze: #8a6d3b;
+  --bronze-dark: #6f5630;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-bronze: var(--bronze);
+  --color-bronze-dark: var(--bronze-dark);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
