@@ -19,7 +19,9 @@ export interface TempPinRow {
   label: string;
   pin: string;
   deviceName: string;
+  startsAt: string | null;
   expiresAt: string;
+  active: boolean; // already created on the door (vs scheduled to start later)
   userId: number;
 }
 
@@ -35,7 +37,9 @@ export async function listTempPinsUI(): Promise<TempPinRow[]> {
     label: p.label,
     pin: p.pin,
     deviceName: dn.get(p.deviceId) ?? "",
+    startsAt: p.startsAt?.toISOString() ?? null,
     expiresAt: p.expiresAt.toISOString(),
+    active: p.activatedAt != null,
     userId: p.akuvoxUserId,
   }));
 }
@@ -58,19 +62,32 @@ export async function createTempPinAction(
   const user = await requireUser();
   const t = getDictionary(await getLocale());
   const label = String(formData.get("label") ?? "").trim();
-  const hours = Math.max(1, Math.min(720, Number(formData.get("hours") ?? 12)));
   const deviceId = String(formData.get("deviceId") ?? "");
   const customPin = String(formData.get("pin") ?? "").trim();
+  const startsRaw = String(formData.get("startsAt") ?? "").trim();
+  const endsRaw = String(formData.get("endsAt") ?? "").trim();
   if (!label) return { error: t.temp.needLabel };
   if (!deviceId) return { error: t.temp.needDoor };
   if (customPin && !/^\d{4,6}$/.test(customPin)) {
     return { error: t.temp.badPin };
   }
+
+  // datetime-local strings parse as LOCAL time, which is what staff expect.
+  const startsAt = startsRaw ? new Date(startsRaw) : null;
+  const expiresAt = endsRaw ? new Date(endsRaw) : new Date(Date.now() + 12 * 3600000);
+  if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+    return { error: t.temp.endInPast };
+  }
+  if (startsAt && (isNaN(startsAt.getTime()) || startsAt.getTime() >= expiresAt.getTime())) {
+    return { error: t.temp.badStart };
+  }
+
   try {
-    const { pin, userId, expiresAt } = await createTempPin({
+    const { pin, userId } = await createTempPin({
       deviceId,
       label,
-      hours,
+      startsAt,
+      expiresAt,
       pin: customPin || undefined,
       createdById: user.id,
     });
@@ -79,7 +96,7 @@ export async function createTempPinAction(
       action: "enrollee.create",
       targetType: "TempPin",
       targetId: String(userId),
-      meta: { label, hours, expiresAt },
+      meta: { label, startsAt, expiresAt },
     });
     revalidatePath("/temp-pins");
     return { ok: { pin, label } };

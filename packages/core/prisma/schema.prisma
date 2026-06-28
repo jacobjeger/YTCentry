@@ -127,14 +127,16 @@ model Device {
 /// Allocated in a dedicated band (>= 200000) so it never collides with enrolled
 /// people, and auto-deleted by the pusher when it lapses (band-guarded delete).
 model TempPin {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   deviceId     String
-  akuvoxUserId Int      // door UserID for this temp user (>= 200000)
-  label        String   // who it's for, e.g. "Plumber"
+  akuvoxUserId Int       // door UserID for this temp user (>= 200000)
+  label        String    // who it's for, e.g. "Plumber"
   pin          String
+  startsAt     DateTime? // when it should become active (null = immediately)
+  activatedAt  DateTime? // when the device user was actually created (null = not yet)
   expiresAt    DateTime
   createdById  String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   @@index([expiresAt])
   @@index([deviceId])

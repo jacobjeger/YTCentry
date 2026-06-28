@@ -57,6 +57,13 @@ export interface Dict {
     needDoor: string;
     badPin: string;
     createFailed: string;
+    starts: string;
+    ends: string;
+    startsHint: string;
+    endInPast: string;
+    badStart: string;
+    scheduled: string;
+    startsAtLabel: string; // "{t}"
   };
   account: {
     title: string;
@@ -372,6 +379,13 @@ const en: Dict = {
     needDoor: "Pick a door.",
     badPin: "The code must be 4–6 digits.",
     createFailed: "Couldn't create the code.",
+    starts: "Starts",
+    ends: "Ends",
+    startsHint: "Leave blank to start now.",
+    endInPast: "Pick an end time in the future.",
+    badStart: "The start must be before the end.",
+    scheduled: "Scheduled",
+    startsAtLabel: "Starts {t}",
   },
   account: {
     title: "Your account",
@@ -696,6 +710,13 @@ const he: Dict = {
     needDoor: "בחרו דלת.",
     badPin: "‎הקוד חייב להיות 4–6 ספרות.",
     createFailed: "לא ניתן ליצור את הקוד.",
+    starts: "מתחיל",
+    ends: "מסתיים",
+    startsHint: "השאירו ריק כדי להתחיל עכשיו.",
+    endInPast: "בחרו זמן סיום בעתיד.",
+    badStart: "זמן ההתחלה חייב להיות לפני הסיום.",
+    scheduled: "מתוזמן",
+    startsAtLabel: "מתחיל {t}",
   },
   account: {
     title: "החשבון שלי",

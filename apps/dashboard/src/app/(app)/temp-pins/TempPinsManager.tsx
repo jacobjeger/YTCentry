@@ -26,6 +26,18 @@ function countdown(iso: string): string {
   return `${Math.floor(hrs / 24)}d`;
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+/** now + 12h as a local `YYYY-MM-DDTHH:mm` for the datetime-local default. */
+function defaultEnd(): string {
+  const d = new Date(Date.now() + 12 * 3600000);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+/** Local 24-hour "DD/MM HH:mm" for showing a start time. */
+function fmtStart(iso: string): string {
+  const d = new Date(iso);
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function TempPinsManager() {
   const t = useT();
   const [pins, setPins] = useState<TempPinRow[]>([]);
@@ -64,21 +76,10 @@ export default function TempPinsManager() {
         action={action}
         className="rounded-xl border border-stone-200 bg-white p-6 flex flex-col gap-3"
       >
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="flex flex-col gap-1 sm:col-span-1">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1">
             <span className="text-sm font-medium text-stone-700">{t.temp.label}</span>
             <input name="label" required placeholder={t.temp.labelPlaceholder} className={input} />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-stone-700">{t.temp.duration}</span>
-            <select name="hours" defaultValue="12" className={input}>
-              <option value="1">1h</option>
-              <option value="4">4h</option>
-              <option value="12">12h</option>
-              <option value="24">24h</option>
-              <option value="72">3d</option>
-              <option value="168">7d</option>
-            </select>
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-sm font-medium text-stone-700">{t.temp.door}</span>
@@ -89,6 +90,24 @@ export default function TempPinsManager() {
                 </option>
               ))}
             </select>
+          </label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-stone-700">{t.temp.starts}</span>
+            {/* lang=en-GB forces 24-hour time (the scanner uses 24h) */}
+            <input name="startsAt" type="datetime-local" lang="en-GB" className={input} />
+            <span className="text-xs text-stone-400">{t.temp.startsHint}</span>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-stone-700">{t.temp.ends}</span>
+            <input
+              name="endsAt"
+              type="datetime-local"
+              lang="en-GB"
+              defaultValue={defaultEnd()}
+              className={input}
+            />
           </label>
         </div>
         <label className="flex flex-col gap-1 max-w-xs">
@@ -157,8 +176,16 @@ export default function TempPinsManager() {
                   >
                     {p.pin}
                   </button>
-                  <div className="text-sm text-stone-500 w-28 text-end">
-                    {left ? fmt(t.temp.expiresIn, { t: left }) : t.temp.expired}
+                  <div className="text-sm w-32 text-end">
+                    {!p.active && p.startsAt ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                        {fmt(t.temp.startsAtLabel, { t: fmtStart(p.startsAt) })}
+                      </span>
+                    ) : left ? (
+                      <span className="text-stone-500">{fmt(t.temp.expiresIn, { t: left })}</span>
+                    ) : (
+                      <span className="text-stone-500">{t.temp.expired}</span>
+                    )}
                   </div>
                   <form action={extendTempPinAction}>
                     <input type="hidden" name="id" value={p.id} />

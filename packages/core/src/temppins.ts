@@ -26,34 +26,56 @@ async function allocateTempUserId(): Promise<number> {
   return Math.max(cur, TEMP_BAND_START - 1) + 1;
 }
 
-export async function createTempPin(opts: {
-  deviceId: string;
-  label: string;
-  hours: number;
-  pin?: string;
-  createdById?: string | null;
-}): Promise<{ pin: string; userId: number; expiresAt: Date }> {
-  const device = await prisma.device.findUniqueOrThrow({ where: { id: opts.deviceId } });
-  const client = clientForDevice(device);
-  const userId = await allocateTempUserId();
-  const expiresAt = new Date(Date.now() + opts.hours * 3600000);
-  const name = `Guest: ${opts.label}`.slice(0, 30);
+function guestName(label: string): string {
+  return `Guest: ${label}`.slice(0, 30);
+}
 
-  let pin = opts.pin || randomPin();
-  let created = false;
-  for (let attempt = 0; attempt < 8 && !created; attempt++) {
+/** Create the PIN-only user on the device, retrying a random PIN on collision
+ *  (unless a specific PIN was requested). Returns the PIN actually used. */
+async function createOnDevice(
+  deviceId: string,
+  userId: number,
+  name: string,
+  wantPin: string,
+  pinIsCustom: boolean,
+): Promise<string> {
+  const device = await prisma.device.findUniqueOrThrow({ where: { id: deviceId } });
+  const client = clientForDevice(device);
+  let pin = wantPin;
+  for (let attempt = 0; attempt < 8; attempt++) {
     try {
       await client.createPinUser({ userId, name, pin });
-      created = true;
+      return pin;
     } catch (e) {
-      if (e instanceof AkuvoxPinTakenError && !opts.pin) {
+      if (e instanceof AkuvoxPinTakenError && !pinIsCustom) {
         pin = randomPin();
         continue;
       }
       throw e;
     }
   }
-  if (!created) throw new AkuvoxPinTakenError();
+  throw new AkuvoxPinTakenError();
+}
+
+export async function createTempPin(opts: {
+  deviceId: string;
+  label: string;
+  expiresAt: Date;
+  startsAt?: Date | null;
+  pin?: string;
+  createdById?: string | null;
+}): Promise<{ pin: string; userId: number; expiresAt: Date; deferred: boolean }> {
+  await prisma.device.findUniqueOrThrow({ where: { id: opts.deviceId } });
+  const userId = await allocateTempUserId();
+  const name = guestName(opts.label);
+  const pinIsCustom = !!opts.pin;
+  const deferred = !!opts.startsAt && opts.startsAt.getTime() > Date.now();
+
+  let pin = opts.pin || randomPin();
+  if (!deferred) {
+    // Active now — create on the door immediately.
+    pin = await createOnDevice(opts.deviceId, userId, name, pin, pinIsCustom);
+  }
 
   await prisma.tempPin.create({
     data: {
@@ -61,19 +83,50 @@ export async function createTempPin(opts: {
       akuvoxUserId: userId,
       label: opts.label,
       pin,
-      expiresAt,
+      startsAt: opts.startsAt ?? null,
+      activatedAt: deferred ? null : new Date(),
+      expiresAt: opts.expiresAt,
       createdById: opts.createdById ?? null,
     },
   });
-  // reflect it in the directory cache immediately (no face)
-  await upsertCacheRow({
-    deviceId: opts.deviceId,
-    userID: String(userId),
-    name,
-    hasFace: false,
-    pin,
+  if (!deferred) {
+    await upsertCacheRow({
+      deviceId: opts.deviceId,
+      userID: String(userId),
+      name,
+      hasFace: false,
+      pin,
+    });
+  }
+  return { pin, userId, expiresAt: opts.expiresAt, deferred };
+}
+
+/** Create the device users for any deferred temp PINs whose start time has
+ *  arrived. Runs from the pusher. */
+export async function activateDueTempPins(): Promise<number> {
+  const due = await prisma.tempPin.findMany({
+    where: { activatedAt: null, startsAt: { lte: new Date() }, expiresAt: { gt: new Date() } },
   });
-  return { pin, userId, expiresAt };
+  let n = 0;
+  for (const tp of due) {
+    try {
+      const name = guestName(tp.label);
+      // The stored PIN may now collide; allow a random fallback.
+      const pin = await createOnDevice(tp.deviceId, tp.akuvoxUserId, name, tp.pin, false);
+      await prisma.tempPin.update({ where: { id: tp.id }, data: { activatedAt: new Date(), pin } });
+      await upsertCacheRow({
+        deviceId: tp.deviceId,
+        userID: String(tp.akuvoxUserId),
+        name,
+        hasFace: false,
+        pin,
+      });
+      n++;
+    } catch (e) {
+      console.warn("[temppin] activate failed for", tp.akuvoxUserId, e instanceof Error ? e.message : e);
+    }
+  }
+  return n;
 }
 
 export async function extendTempPin(id: string, hours: number): Promise<Date> {
@@ -87,6 +140,7 @@ export async function extendTempPin(id: string, hours: number): Promise<Date> {
 /** SAFE delete: temp band only + name must still match. */
 async function deleteTempUserSafely(tp: TempPin): Promise<void> {
   if (tp.akuvoxUserId < TEMP_BAND_START) return; // never touch outside temp band
+  if (!tp.activatedAt) return; // never created on the door (deferred) — nothing to delete
   const device = await prisma.device.findUnique({ where: { id: tp.deviceId } });
   if (!device) return;
   const client = clientForDevice(device);

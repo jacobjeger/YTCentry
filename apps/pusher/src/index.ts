@@ -14,6 +14,7 @@ import {
   completeJob,
   cleanupExpiredDoorSubmissions,
   expireTempPins,
+  activateDueTempPins,
   getActiveDevices,
   syncDeviceDirectory,
   type ClaimedJob,
@@ -116,6 +117,8 @@ async function cleanupLoop() {
 async function tempPinLoop() {
   while (running) {
     try {
+      const activated = await activateDueTempPins();
+      if (activated) console.log(`[temppin] activated ${activated} scheduled PIN(s)`);
       const expired = await expireTempPins();
       if (expired) console.log(`[temppin] removed ${expired} expired guest PIN(s)`);
     } catch (e) {
