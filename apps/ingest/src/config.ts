@@ -8,6 +8,7 @@ export interface IngestConfig {
   host: string;
   port: number;
   pollMs: number;
+  sinceDays: number; // only look at mail from the last N days
 }
 
 /** Returns null (rather than throwing) when Gmail creds aren't set yet, so the
@@ -22,5 +23,6 @@ export function loadConfig(): IngestConfig | null {
     host: process.env.IMAP_HOST ?? "imap.gmail.com",
     port: Number(process.env.IMAP_PORT ?? 993),
     pollMs: Number(process.env.INGEST_POLL_MS ?? 60000),
+    sinceDays: Number(process.env.INGEST_SINCE_DAYS ?? 3),
   };
 }

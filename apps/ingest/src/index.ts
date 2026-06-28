@@ -9,6 +9,7 @@
  */
 import { ImapFlow } from "imapflow";
 import { simpleParser, type ParsedMail } from "mailparser";
+import { prisma } from "@ytc/core";
 import { loadConfig, type IngestConfig } from "./config";
 import { processMessage, type IncomingMessage } from "./processMessage";
 
@@ -18,55 +19,74 @@ process.on("SIGTERM", () => (running = false));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function firstImage(
-  attachments: { contentType: string; content: Buffer; size?: number }[],
-): { bytes: Uint8Array; mime: string } | null {
-  for (const a of attachments) {
-    if (a.contentType?.startsWith("image/")) {
+/** Find a face image in a message: a file/inline attachment, else a base64
+ *  data: URI embedded in the HTML body (pasted/inserted photos). */
+function extractImage(parsed: ParsedMail): { bytes: Uint8Array; mime: string } | null {
+  for (const a of parsed.attachments ?? []) {
+    if (a.contentType?.startsWith("image/") && a.content) {
       return { bytes: new Uint8Array(a.content), mime: a.contentType };
     }
+  }
+  const html = parsed.html || "";
+  const m = html.match(/data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)/i);
+  if (m) {
+    return { bytes: new Uint8Array(Buffer.from(m[2]!, "base64")), mime: m[1]! };
   }
   return null;
 }
 
-/** Process all currently-unseen messages on an already-open mailbox. */
+/** Process recent messages (any read state) on an already-open mailbox, deduped
+ *  on Message-ID so re-scans are harmless. */
 let processing = false;
-async function processNew(client: ImapFlow, user: string): Promise<void> {
+async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
   if (processing) return; // avoid overlapping runs from rapid 'exists' events
   processing = true;
   try {
-    const uids = await client.search({ seen: false }, { uid: true });
+    const since = new Date(Date.now() - cfg.sinceDays * 86400000);
+    const uids = await client.search({ since }, { uid: true });
     if (!uids || uids.length === 0) return;
-    for (const uid of uids) {
+
+    // Cheap pass: get Message-IDs from envelopes, skip already-ingested.
+    const candidates: { uid: number; messageId: string }[] = [];
+    for await (const m of client.fetch(uids, { envelope: true, uid: true }, { uid: true })) {
+      candidates.push({
+        uid: m.uid,
+        messageId: m.envelope?.messageId ?? `uid-${m.uid}-${cfg.user}`,
+      });
+    }
+    const seen = new Set(
+      (
+        await prisma.photoSubmission.findMany({
+          where: { gmailMessageId: { in: candidates.map((c) => c.messageId) } },
+          select: { gmailMessageId: true },
+        })
+      ).map((r) => r.gmailMessageId),
+    );
+    const fresh = candidates.filter((c) => !seen.has(c.messageId));
+
+    for (const c of fresh) {
       try {
-        const msg = await client.fetchOne(uid, { source: true }, { uid: true });
-        if (!msg || !msg.source) {
-          await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true });
-          continue;
-        }
+        const msg = await client.fetchOne(c.uid, { source: true }, { uid: true });
+        if (!msg || !msg.source) continue;
         const parsed = (await simpleParser(msg.source)) as ParsedMail;
-        const img = firstImage(
-          (parsed.attachments ?? []) as {
-            contentType: string;
-            content: Buffer;
-            size?: number;
-          }[],
+        const img = extractImage(parsed);
+        // Diagnostic: what does this message actually contain?
+        const attTypes = (parsed.attachments ?? []).map((a) => a.contentType).join(",");
+        console.log(
+          `[ingest] candidate "${parsed.subject}" atts=[${attTypes}] htmlDataUri=${/data:image\//i.test(parsed.html || "")} image=${img ? img.mime : "NONE"}`,
         );
         const incoming: IncomingMessage = {
-          messageId: parsed.messageId ?? `uid-${uid}-${user}`,
+          messageId: c.messageId,
           from: parsed.from?.value?.[0]?.address ?? "unknown",
           subject: parsed.subject ?? "",
           image: img?.bytes ?? null,
           imageMime: img?.mime,
         };
         const res = await processMessage(incoming);
-        if (res.status === "created") {
-          console.log(`[ingest] ${incoming.from} "${incoming.subject}" → ${res.decision}`);
-        }
+        console.log(`[ingest] "${incoming.subject}" → ${res.status} ${res.decision ?? ""}`);
       } catch (e) {
-        console.warn(`[ingest] message uid ${uid} failed:`, e);
+        console.warn(`[ingest] message uid ${c.uid} failed:`, e);
       }
-      await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true });
     }
   } finally {
     processing = false;
@@ -94,11 +114,11 @@ async function watch(cfg: IngestConfig): Promise<void> {
       await client.mailboxOpen("INBOX");
       console.log(`[ingest] connected, watching ${cfg.user}`);
 
-      await processNew(client, cfg.user); // backlog on (re)connect
+      await processNew(client, cfg); // backlog on (re)connect
 
       // React to new mail (imapflow auto-IDLEs and emits 'exists').
       client.on("exists", () => {
-        processNew(client, cfg.user).catch((e) =>
+        processNew(client, cfg).catch((e) =>
           console.warn("[ingest] processNew error:", e),
         );
       });
@@ -106,7 +126,7 @@ async function watch(cfg: IngestConfig): Promise<void> {
       // Also poll on an interval as a belt-and-suspenders against missed pushes.
       while (running && client.usable) {
         await sleep(cfg.pollMs);
-        if (running && client.usable) await processNew(client, cfg.user);
+        if (running && client.usable) await processNew(client, cfg);
       }
     } catch (e) {
       console.warn(
