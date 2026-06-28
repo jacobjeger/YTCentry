@@ -11,3 +11,5 @@ export * from "./face";
 export * from "./audit";
 export * from "./queue";
 export * from "./roster-match";
+export * from "./crypto";
+export * from "./devices";

@@ -2,6 +2,8 @@ import { prisma } from "@ytc/core";
 import { requireAdmin } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
+import { listAllDoors } from "./doors-actions";
+import DoorsManager from "./DoorsManager";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +12,7 @@ export default async function SettingsPage() {
   const t = getDictionary(await getLocale());
 
   const queueConfigured = !!process.env.AGENT_BEARER_TOKEN;
+  const doors = await listAllDoors();
   const logs = await prisma.auditLog.findMany({
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -31,6 +34,11 @@ export default async function SettingsPage() {
           value={queueConfigured ? t.settings.configured : t.settings.notConfigured}
           good={queueConfigured}
         />
+      </div>
+
+      <div>
+        <h2 className="font-semibold mb-3">Doors</h2>
+        <DoorsManager doors={doors} />
       </div>
 
       <div>

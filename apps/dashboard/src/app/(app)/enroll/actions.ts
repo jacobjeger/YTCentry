@@ -1,10 +1,23 @@
 "use server";
 
 import { z } from "zod";
+import { prisma } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
+
+export interface EnrollDoor { id: string; name: string }
+
+/** Active doors to offer in the Add Person door picker. */
+export async function listEnrollDoors(): Promise<EnrollDoor[]> {
+  await requireUser();
+  return prisma.device.findMany({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true },
+  });
+}
 
 const schema = z.object({
   displayName: z.string().min(1, "Name is required."),
@@ -44,6 +57,10 @@ export async function enrollAction(
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const deviceIds = formData.getAll("deviceIds").map(String).filter(Boolean);
+  if (deviceIds.length === 0) {
+    return { error: t.enroll.pickDoor };
+  }
 
   try {
     const { enrollee, pushed, deviceError } = await enrollPerson({
@@ -51,6 +68,7 @@ export async function enrollAction(
       source: "MANUAL",
       image: bytes,
       actorId: user.id,
+      deviceIds,
     });
     // Only report success if the door actually accepted the face.
     if (!pushed) return { error: deviceError ?? t.common.error };

@@ -94,8 +94,44 @@ model Enrollee {
   createdById  String?
   rosterEntry  RosterEntry?
   pushJobs     PushJob[]
+  devices      EnrolleeDevice[]
 
   @@index([status])
+}
+
+/// A face scanner (door). Multiple doors: front, kitchen-front, kitchen-back.
+/// The web password is encrypted at rest (see core/crypto). allowEmail = this
+/// door receives emailed-photo enrollments; pollSnapshots = pull its denied
+/// scans into the Review Queue.
+model Device {
+  id            String   @id @default(cuid())
+  key           String   @unique // slug, e.g. "front", "kitchen-back"
+  name          String           // "Front Door"
+  baseUrl       String           // tunnel URL, e.g. https://faces.localabbrachfeld.org
+  webUser       String   @default("admin")
+  webPasswordEnc String          // AES-GCM encrypted web login password
+  active        Boolean  @default(true)
+  allowEmail    Boolean  @default(false)
+  pollSnapshots Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  enrollees     EnrolleeDevice[]
+}
+
+/// Which doors a person is enrolled on, with per-door push status.
+model EnrolleeDevice {
+  id         String         @id @default(cuid())
+  enrollee   Enrollee       @relation(fields: [enrolleeId], references: [id], onDelete: Cascade)
+  enrolleeId String
+  device     Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  deviceId   String
+  status     EnrolleeStatus @default(PENDING_PUSH)
+  lastError  String?
+  pushedAt   DateTime?
+
+  @@unique([enrolleeId, deviceId])
+  @@index([deviceId])
 }
 
 /// The incoming-talmid list uploaded by staff (CSV/XLSX). Spine for matching

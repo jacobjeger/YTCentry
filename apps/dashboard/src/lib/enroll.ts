@@ -17,12 +17,21 @@ import {
   allocateUserId,
   audit,
   ID_BAND_START,
+  getActiveDevices,
+  clientForDevice,
   type EnrolleeSource,
   type Enrollee,
+  type Device,
 } from "@ytc/core";
-import { deviceClient } from "./device";
 
 export class EnrollError extends Error {}
+
+export interface DoorResult {
+  deviceId: string;
+  name: string;
+  ok: boolean;
+  error?: string;
+}
 
 /** Object key from a person's name: "Moshe Goldberg" → enrollees/Moshe_Goldberg-100001.jpg */
 export function photoKey(displayName: string, userId: number): string {
@@ -45,13 +54,16 @@ export interface EnrollInput {
   actorId?: string | null;
   /** link back to the roster/submission rows when promoting from email */
   rosterEntryId?: string | null;
+  /** which doors to enroll on; defaults to all active doors */
+  deviceIds?: string[];
 }
 
 export interface EnrollResult {
   enrollee: Enrollee;
-  pushed: boolean;
-  /** the real device error when pushed === false */
+  pushed: boolean; // every selected door succeeded
+  /** the real device error when pushed === false (joined across doors) */
   deviceError?: string;
+  perDoor: DoorResult[];
 }
 
 /**
@@ -86,7 +98,7 @@ export async function enrollPerson(input: EnrollInput): Promise<EnrollResult> {
   }
   if (!enrollee) throw new EnrollError("Could not allocate a free UserID — retry.");
 
-  return pushToDoor(enrollee, face.image, input.actorId);
+  return pushToDoors(enrollee, face.image, input.deviceIds, input.actorId);
 }
 
 async function createEnrollee(
@@ -133,38 +145,82 @@ async function createEnrollee(
   return enrollee;
 }
 
-/** Push to the door synchronously and verify the face landed. */
-async function pushToDoor(
+/** Push synchronously to each selected door, verify the face landed on each,
+ *  and record per-door status. Enrollee.status aggregates the doors. */
+async function pushToDoors(
   enrollee: Enrollee,
   imageBytes: Uint8Array,
+  deviceIds: string[] | undefined,
   actorId?: string | null,
 ): Promise<EnrollResult> {
-  try {
-    const client = deviceClient();
-    await client.pushUserWeb({
-      userId: enrollee.akuvoxUserId,
-      name: enrollee.displayName,
-      image: imageBytes,
-      scheduleRelay: enrollee.scheduleRelay,
+  let devices: Device[];
+  if (deviceIds && deviceIds.length) {
+    devices = await prisma.device.findMany({
+      where: { id: { in: deviceIds }, active: true },
+      orderBy: { sortOrder: "asc" },
     });
-    const updated = await prisma.enrollee.update({
-      where: { id: enrollee.id },
-      data: { status: "PUSHED", pushedAt: new Date(), faceUrl: "set", lastError: null },
-    });
-    await audit({
-      actorId,
-      action: "face.push",
-      targetType: "Enrollee",
-      targetId: enrollee.id,
-      meta: { akuvoxUserId: enrollee.akuvoxUserId },
-    });
-    return { enrollee: updated, pushed: true };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Push to the door failed.";
+  } else {
+    devices = await getActiveDevices();
+  }
+
+  if (devices.length === 0) {
+    const msg = "No doors are configured. Add a door in Settings first.";
     const updated = await prisma.enrollee.update({
       where: { id: enrollee.id },
       data: { status: "PUSH_FAILED", lastError: msg },
     });
-    return { enrollee: updated, pushed: false, deviceError: msg };
+    return { enrollee: updated, pushed: false, deviceError: msg, perDoor: [] };
   }
+
+  const perDoor: DoorResult[] = [];
+  for (const d of devices) {
+    try {
+      await clientForDevice(d).pushUserWeb({
+        userId: enrollee.akuvoxUserId,
+        name: enrollee.displayName,
+        image: imageBytes,
+        scheduleRelay: enrollee.scheduleRelay,
+      });
+      await prisma.enrolleeDevice.upsert({
+        where: { enrolleeId_deviceId: { enrolleeId: enrollee.id, deviceId: d.id } },
+        create: { enrolleeId: enrollee.id, deviceId: d.id, status: "PUSHED", pushedAt: new Date() },
+        update: { status: "PUSHED", pushedAt: new Date(), lastError: null },
+      });
+      perDoor.push({ deviceId: d.id, name: d.name, ok: true });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Push failed.";
+      await prisma.enrolleeDevice.upsert({
+        where: { enrolleeId_deviceId: { enrolleeId: enrollee.id, deviceId: d.id } },
+        create: { enrolleeId: enrollee.id, deviceId: d.id, status: "PUSH_FAILED", lastError: msg },
+        update: { status: "PUSH_FAILED", lastError: msg },
+      });
+      perDoor.push({ deviceId: d.id, name: d.name, ok: false, error: msg });
+    }
+  }
+
+  const allOk = perDoor.every((p) => p.ok);
+  const anyOk = perDoor.some((p) => p.ok);
+  const failMsg = perDoor.filter((p) => !p.ok).map((p) => `${p.name}: ${p.error}`).join("; ");
+  const updated = await prisma.enrollee.update({
+    where: { id: enrollee.id },
+    data: {
+      status: allOk ? "PUSHED" : "PUSH_FAILED",
+      pushedAt: anyOk ? new Date() : null,
+      faceUrl: anyOk ? "set" : null,
+      lastError: allOk ? null : failMsg,
+    },
+  });
+  await audit({
+    actorId,
+    action: "face.push",
+    targetType: "Enrollee",
+    targetId: enrollee.id,
+    meta: { akuvoxUserId: enrollee.akuvoxUserId, doors: perDoor.map((p) => ({ name: p.name, ok: p.ok })) },
+  });
+  return {
+    enrollee: updated,
+    pushed: allOk,
+    deviceError: allOk ? undefined : failMsg,
+    perDoor,
+  };
 }

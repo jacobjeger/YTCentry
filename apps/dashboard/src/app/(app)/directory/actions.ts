@@ -10,9 +10,22 @@ import {
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { photoKey } from "@/lib/enroll";
-import { deviceClient } from "@/lib/device";
+import { deviceClientById } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
+
+export interface DoorOption { id: string; name: string }
+
+/** The doors to show in the Directory's door selector. */
+export async function listDoors(): Promise<DoorOption[]> {
+  await requireUser();
+  const devices = await prisma.device.findMany({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true },
+  });
+  return devices;
+}
 
 export type DirState = { error?: string; ok?: string };
 
@@ -29,14 +42,14 @@ export interface DirRow {
 }
 
 /** One unified view: EVERYONE on the door (live), merged with our records. */
-export async function loadFullDirectory(): Promise<{
+export async function loadFullDirectory(deviceId?: string): Promise<{
   rows?: DirRow[];
   total?: number;
   error?: string;
 }> {
   await requireUser();
   try {
-    const client = deviceClient();
+    const client = await deviceClientById(deviceId);
     const [users, enrollees] = await Promise.all([
       client.getAllUsersViaWeb(),
       prisma.enrollee.findMany(),
@@ -68,8 +81,9 @@ export async function loadFullDirectory(): Promise<{
 export async function deleteFromDoor(formData: FormData) {
   const user = await requireUser();
   const userID = String(formData.get("userID") ?? "").trim();
+  const deviceId = String(formData.get("deviceId") ?? "") || undefined;
   if (!userID) return;
-  const client = deviceClient();
+  const client = await deviceClientById(deviceId);
   await client.delAnyUserWeb(userID);
 
   const n = Number(userID);

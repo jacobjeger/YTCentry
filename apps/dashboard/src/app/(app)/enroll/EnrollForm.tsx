@@ -7,7 +7,12 @@ import {
   useState,
   useCallback,
 } from "react";
-import { enrollAction, type EnrollState } from "./actions";
+import {
+  enrollAction,
+  listEnrollDoors,
+  type EnrollState,
+  type EnrollDoor,
+} from "./actions";
 import { useT } from "@/components/LocaleProvider";
 import { fmt } from "@/lib/i18n";
 
@@ -23,7 +28,12 @@ export default function EnrollForm() {
     {},
   );
   const [mode, setMode] = useState<Mode>("upload");
+  const [doors, setDoors] = useState<EnrollDoor[]>([]);
   const [photo, setPhoto] = useState<File | null>(null);
+
+  useEffect(() => {
+    listEnrollDoors().then(setDoors);
+  }, []);
   const [preview, setPreview] = useState<string | null>(null);
   const [camError, setCamError] = useState<string | null>(null);
 
@@ -166,6 +176,34 @@ export default function EnrollForm() {
           <input name="phone" className={input} />
         </label>
       </div>
+
+      {/* Which doors */}
+      {doors.length > 1 ? (
+        <div>
+          <span className="text-sm font-medium text-stone-700">
+            {t.enroll.doorsLabel}
+          </span>
+          <div className="flex flex-wrap gap-3 mt-2">
+            {doors.map((d) => (
+              <label
+                key={d.id}
+                className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  name="deviceIds"
+                  value={d.id}
+                  defaultChecked
+                  className="accent-bronze"
+                />
+                <span className="text-sm">{d.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : doors.length === 1 ? (
+        <input type="hidden" name="deviceIds" value={doors[0]!.id} />
+      ) : null}
 
       {/* Photo source */}
       <div>

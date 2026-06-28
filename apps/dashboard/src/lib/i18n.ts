@@ -75,6 +75,8 @@ export interface Dict {
     addAnother: string;
     needPhoto: string;
     tooLarge: string;
+    doorsLabel: string;
+    pickDoor: string;
   };
   staff: {
     title: string;
@@ -269,6 +271,8 @@ const en: Dict = {
     addAnother: "Add another",
     needPhoto: "Add a photo to continue",
     tooLarge: "That image is too large (max 15MB).",
+    doorsLabel: "Add to which doors?",
+    pickDoor: "Pick at least one door.",
   },
   staff: {
     title: "Staff logins",
@@ -465,6 +469,8 @@ const he: Dict = {
     addAnother: "הוספת אדם נוסף",
     needPhoto: "הוסיפו תמונה כדי להמשיך",
     tooLarge: "התמונה גדולה מדי (עד 15MB).",
+    doorsLabel: "לאילו דלתות להוסיף?",
+    pickDoor: "בחרו לפחות דלת אחת.",
   },
   staff: {
     title: "חשבונות צוות",

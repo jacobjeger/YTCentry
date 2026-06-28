@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import {
   loadFullDirectory,
+  listDoors,
   deleteFromDoor,
   repushEnrollee,
   replacePhoto,
   type DirRow,
   type DirState,
+  type DoorOption,
 } from "./actions";
 import { useActionState, useRef } from "react";
 import { useT } from "@/components/LocaleProvider";
@@ -18,10 +20,21 @@ export default function UnifiedDirectory() {
   const [rows, setRows] = useState<DirRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [doors, setDoors] = useState<DoorOption[]>([]);
+  const [door, setDoor] = useState<string>("");
+
+  useEffect(() => {
+    listDoors().then((ds) => {
+      setDoors(ds);
+      if (ds[0]) setDoor(ds[0].id);
+    });
+  }, []);
 
   useEffect(() => {
     let alive = true;
-    loadFullDirectory().then((res) => {
+    setRows(null);
+    setError(null);
+    loadFullDirectory(door || undefined).then((res) => {
       if (!alive) return;
       if (res.error) setError(res.error);
       else setRows(res.rows ?? []);
@@ -29,7 +42,7 @@ export default function UnifiedDirectory() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [door]);
 
   const filtered = (rows ?? []).filter((r) => {
     const s = q.trim().toLowerCase();
@@ -51,12 +64,25 @@ export default function UnifiedDirectory() {
         </div>
       ) : (
         <>
-          <div className="mb-4 flex items-center gap-3">
+          <div className="mb-4 flex items-center gap-3 flex-wrap">
+            {doors.length > 1 ? (
+              <select
+                value={door}
+                onChange={(e) => setDoor(e.target.value)}
+                className="rounded-lg border border-stone-300 px-3 py-2 bg-white"
+              >
+                {doors.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={t.directory.searchDevice}
-              className="w-full max-w-sm rounded-lg border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bronze"
+              className="flex-1 min-w-[200px] max-w-sm rounded-lg border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bronze"
             />
             <span className="text-sm text-stone-500 whitespace-nowrap">
               {fmt(t.directory.totalOnDoor, { n: rows.length })}
@@ -77,7 +103,7 @@ export default function UnifiedDirectory() {
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {filtered.map((r) => (
-                    <Row key={r.userID} r={r} />
+                    <Row key={r.userID} r={r} deviceId={door} />
                   ))}
                 </tbody>
               </table>
@@ -89,7 +115,7 @@ export default function UnifiedDirectory() {
   );
 }
 
-function Row({ r }: { r: DirRow }) {
+function Row({ r, deviceId }: { r: DirRow; deviceId: string }) {
   const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceFormRef = useRef<HTMLFormElement>(null);
@@ -184,6 +210,7 @@ function Row({ r }: { r: DirRow }) {
             }}
           >
             <input type="hidden" name="userID" value={r.userID} />
+            <input type="hidden" name="deviceId" value={deviceId} />
             <button className="text-xs text-red-600 hover:underline">
               {t.directory.remove}
             </button>
