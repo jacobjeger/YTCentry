@@ -92,6 +92,14 @@ export class AkuvoxError extends Error {
   }
 }
 
+/** Thrown when a PIN-only user can't be created because the PIN is already used. */
+export class AkuvoxPinTakenError extends AkuvoxError {
+  constructor() {
+    super("That PIN is already in use on the door.");
+    this.name = "AkuvoxPinTakenError";
+  }
+}
+
 export class AkuvoxClient {
   private readonly auth: string;
   private readonly timeout: number;
@@ -424,13 +432,24 @@ export class AkuvoxClient {
     if (!ok) throw new AkuvoxError("Device rejected the edit.", body);
   }
 
-  private async _delWeb(id: string): Promise<void> {
+  // Delete (CONFIRMED from capture): target=user, action=del, data carries the
+  // internal device id(s) AND their faceID(s) in parallel arrays.
+  //   {type:"select", ids:["842"], faceIDs:["0"]}
+  private async _delWeb(userId: string): Promise<void> {
+    const u = await this.findUserWeb(userId);
+    if (!u) return; // already gone
+    const internalId = String(u.id ?? userId);
+    const faceID = String(u.faceID ?? 0);
     const post = async (session: string) => {
       const res = await fetch(`${this.cfg.baseUrl}/web`, {
         method: "POST",
         headers: { "Content-Type": "application/json;charset=UTF-8", ...this.cfHeaders() },
         body: JSON.stringify({
-          target: "user", action: "del", data: { item: [{ ID: id }] }, session, web: "1",
+          target: "user",
+          action: "del",
+          data: { type: "select", ids: [internalId], faceIDs: [faceID] },
+          session,
+          web: "1",
         }),
       });
       if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web user del.`);
@@ -441,6 +460,53 @@ export class AkuvoxClient {
       this.webSession = null;
       body = await post(await this.webLogin());
     }
+    const ok =
+      (body?.retcode === 0 || body?.retcode === 1) &&
+      String(body?.message ?? "").toLowerCase() === "ok";
+    if (!ok) throw new AkuvoxError("Device rejected the delete.", body);
+  }
+
+  /**
+   * Create a PIN-only user (no face) — for temporary/guest access. The device
+   * enforces UNIQUE PINs; a clash throws AkuvoxPinTakenError so the caller can
+   * pick another. Same /web/user/set path as a face push but faceupload=0.
+   */
+  async createPinUser(opts: {
+    userId: string | number;
+    name: string;
+    pin: string;
+    scheduleRelay?: string;
+    group?: string;
+  }): Promise<void> {
+    this.assertManagedId(opts.userId);
+    const id = String(opts.userId);
+    const sched = opts.scheduleRelay ?? "1001-1";
+    const post = async (session: string) => {
+      const q = new URLSearchParams({
+        UserID: id, name: opts.name, PrivatePIN: opts.pin, RFcard: "", Floor: "0",
+        WebRelay: "0", id: "0", faceID: "0", Phone: "", Group: opts.group || "Default",
+        Priority: "0", DialAccount: "0", relay: sched.split("-")[1] ?? "1",
+        Schedule: sched, Schedule1: sched.split("-")[0] ?? "1001",
+        FaceStatus: "0", faceupload: "0", web: "1", session,
+      });
+      const fd = new FormData();
+      fd.append("file", new Blob([]));
+      const res = await fetch(`${this.cfg.baseUrl}/web/user/set?${q}`, {
+        method: "POST", headers: this.cfHeaders(), body: fd,
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} creating PIN user.`);
+      return res.json();
+    };
+    let body = await post(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await post(await this.webLogin());
+    }
+    if (body?.retcode === 4) throw new AkuvoxPinTakenError();
+    const ok =
+      (body?.retcode === 0 || body?.retcode === 1) &&
+      String(body?.message ?? "").toLowerCase() === "ok";
+    if (!ok) throw new AkuvoxError("Device rejected the PIN user.", body);
   }
 
   /** Delete a user via /web — automation band only (the queued DELETE path). */
