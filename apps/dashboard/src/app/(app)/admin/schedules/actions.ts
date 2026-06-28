@@ -30,7 +30,16 @@ export async function listSchedulesUI(): Promise<ScheduleRow[]> {
   await requireAdmin();
   const d = await firstDevice();
   if (!d) return [];
-  return getCachedSchedules(d.id);
+  let cached = await getCachedSchedules(d.id);
+  if (cached.length === 0) {
+    // first open before a sync — populate once from the door
+    try {
+      cached = await refreshDeviceSchedules(d);
+    } catch {
+      /* device unreachable — return the (empty) cache */
+    }
+  }
+  return cached;
 }
 
 export type SchedState = { error?: string; ok?: string };
