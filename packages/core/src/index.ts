@@ -14,3 +14,4 @@ export * from "./roster-match";
 export * from "./crypto";
 export * from "./devices";
 export * from "./cleanup";
+export * from "./temppins";

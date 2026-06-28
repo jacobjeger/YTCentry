@@ -13,6 +13,7 @@ import {
   claimJobs,
   completeJob,
   cleanupExpiredDoorSubmissions,
+  expireTempPins,
   getActiveDevices,
   syncDeviceDirectory,
   type ClaimedJob,
@@ -111,9 +112,15 @@ async function cleanupLoop() {
   }
 }
 
-/** Keep the dashboard's directory cache fresh (every 5 min, each active door). */
+/** Keep the dashboard's directory cache fresh + expire temp PINs (every 5 min). */
 async function directorySyncLoop() {
   while (running) {
+    try {
+      const expired = await expireTempPins();
+      if (expired) console.log(`[temppin] removed ${expired} expired guest PIN(s)`);
+    } catch (e) {
+      console.error("[temppin loop error]", e);
+    }
     try {
       for (const d of await getActiveDevices()) {
         try {

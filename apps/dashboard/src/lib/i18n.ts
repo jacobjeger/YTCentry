@@ -28,8 +28,27 @@ export interface Dict {
     directory: string;
     staff: string;
     settings: string;
+    tempPins: string;
     signOut: string;
     language: string;
+  };
+  temp: {
+    title: string;
+    subtitle: string;
+    label: string;
+    labelPlaceholder: string;
+    duration: string;
+    door: string;
+    create: string;
+    creating: string;
+    active: string;
+    none: string;
+    pin: string;
+    expiresIn: string; // "{t}"
+    expired: string;
+    addTime: string;
+    revoke: string;
+    createdPin: string; // "{label}" "{pin}"
   };
   login: {
     title: string;
@@ -233,8 +252,27 @@ const en: Dict = {
     directory: "Directory",
     staff: "Staff",
     settings: "Settings",
+    tempPins: "Temp PINs",
     signOut: "Sign out",
     language: "Language",
+  },
+  temp: {
+    title: "Temporary PINs",
+    subtitle: "Guest access codes that auto-expire — no face needed.",
+    label: "Who is it for?",
+    labelPlaceholder: "e.g. Plumber",
+    duration: "Lasts for",
+    door: "Door",
+    create: "Create PIN",
+    creating: "Creating…",
+    active: "Active PINs",
+    none: "No active temporary PINs.",
+    pin: "PIN",
+    expiresIn: "Expires in {t}",
+    expired: "Expiring…",
+    addTime: "+12h",
+    revoke: "Revoke",
+    createdPin: "{label}: PIN {pin}",
   },
   login: {
     title: "YTC Entry",
@@ -447,8 +485,27 @@ const he: Dict = {
     directory: "מדריך",
     staff: "צוות",
     settings: "הגדרות",
+    tempPins: "קודים זמניים",
     signOut: "התנתקות",
     language: "שפה",
+  },
+  temp: {
+    title: "קודים זמניים",
+    subtitle: "קודי גישה לאורחים שפגים אוטומטית — ללא צורך בפנים.",
+    label: "עבור מי?",
+    labelPlaceholder: "לדוגמה: שרברב",
+    duration: "תקף למשך",
+    door: "דלת",
+    create: "יצירת קוד",
+    creating: "יוצר…",
+    active: "קודים פעילים",
+    none: "אין קודים זמניים פעילים.",
+    pin: "קוד",
+    expiresIn: "פג בעוד {t}",
+    expired: "פג…",
+    addTime: "‎+12 שעות",
+    revoke: "ביטול",
+    createdPin: "{label}: קוד {pin}",
   },
   login: {
     title: "YTC Entry",

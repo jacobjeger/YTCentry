@@ -121,6 +121,23 @@ model Device {
   enrollees     EnrolleeDevice[]
 }
 
+/// A temporary / guest PIN — a PIN-only door user (no face) that auto-expires.
+/// Allocated in a dedicated band (>= 200000) so it never collides with enrolled
+/// people, and auto-deleted by the pusher when it lapses (band-guarded delete).
+model TempPin {
+  id           String   @id @default(cuid())
+  deviceId     String
+  akuvoxUserId Int      // door UserID for this temp user (>= 200000)
+  label        String   // who it's for, e.g. "Plumber"
+  pin          String
+  expiresAt    DateTime
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([deviceId])
+}
+
 /// Cached snapshot of a door's full user directory, refreshed by the pusher so
 /// the dashboard Directory loads instantly (instead of pulling ~800 live).
 model DeviceUserCache {

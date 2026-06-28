@@ -25,6 +25,7 @@ export default function AppShell({
     { href: "/review", label: t.nav.review },
     { href: "/roster", label: t.nav.roster },
     { href: "/directory", label: t.nav.directory },
+    { href: "/temp-pins", label: t.nav.tempPins },
     { href: "/admin/staff", label: t.nav.staff, adminOnly: true },
     { href: "/admin/settings", label: t.nav.settings, adminOnly: true },
   ].filter((n) => !n.adminOnly || role === "ADMIN");
