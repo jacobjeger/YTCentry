@@ -82,6 +82,13 @@ function Row({ it }: { it: DirItem }) {
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-3 justify-end whitespace-nowrap">
+          <a
+            href={`/api/enrollee/${it.id}/photo?download=1`}
+            className="text-xs text-stone-600 hover:underline"
+          >
+            {t.directory.download}
+          </a>
+
           {it.status === "PUSH_FAILED" ? (
             <form action={repushEnrollee}>
               <input type="hidden" name="id" value={it.id} />

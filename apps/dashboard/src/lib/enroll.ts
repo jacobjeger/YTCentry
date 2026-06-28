@@ -23,6 +23,17 @@ import {
 
 export class EnrollError extends Error {}
 
+/** Object key from a person's name: "Moshe Goldberg" → enrollees/Moshe_Goldberg-100001.jpg */
+export function photoKey(displayName: string, userId: number): string {
+  const slug =
+    displayName
+      .trim()
+      .replace(/[^\p{L}\p{N}]+/gu, "_") // letters/numbers kept, others → _
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 60) || "person";
+  return `enrollees/${slug}-${userId}.jpg`;
+}
+
 export interface EnrollInput {
   displayName: string;
   studentId?: string | null;
@@ -78,8 +89,9 @@ async function createWithAllocatedId(
     throw new EnrollError("Allocated UserID fell outside the automation band.");
   }
 
-  // Store the normalized photo under a stable, collision-free key.
-  const photoPath = `enrollees/${userId}-${Date.now()}.jpg`;
+  // Store the normalized photo under a name-based, collision-free key
+  // ("First_Last-<userId>.jpg"). The userId keeps it unique across same names.
+  const photoPath = photoKey(input.displayName, userId);
   await putPhoto(photoPath, imageBytes, "image/jpeg");
 
   const enrollee = await prisma.$transaction(async (tx) => {

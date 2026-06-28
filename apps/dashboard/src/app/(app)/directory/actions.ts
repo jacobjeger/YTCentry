@@ -9,6 +9,7 @@ import {
   ID_BAND_START,
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
+import { photoKey } from "@/lib/enroll";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
@@ -99,7 +100,7 @@ export async function replacePhoto(
   const face = await validateFace(new Uint8Array(await file.arrayBuffer()));
   if (!face.ok || !face.image) return { error: face.reason ?? t.common.error };
 
-  const photoPath = `enrollees/${e.akuvoxUserId}-${Date.now()}.jpg`;
+  const photoPath = photoKey(e.displayName, e.akuvoxUserId);
   await putPhoto(photoPath, face.image, "image/jpeg");
 
   await prisma.$transaction(async (tx) => {

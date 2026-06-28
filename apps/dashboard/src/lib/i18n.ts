@@ -152,6 +152,7 @@ export interface Dict {
     repush: string;
     remove: string;
     replacePhoto: string;
+    download: string;
     confirmRemove: string;
     statusDraft: string;
     statusPending: string;
@@ -326,6 +327,7 @@ const en: Dict = {
     repush: "Re-push",
     remove: "Remove",
     replacePhoto: "Replace photo",
+    download: "Download",
     confirmRemove: "Remove this person from the door?",
     statusDraft: "Draft",
     statusPending: "Queued",
@@ -495,6 +497,7 @@ const he: Dict = {
     repush: "שליחה מחדש",
     remove: "הסרה",
     replacePhoto: "החלפת תמונה",
+    download: "הורדה",
     confirmRemove: "להסיר אדם זה מהדלת?",
     statusDraft: "טיוטה",
     statusPending: "בתור",
