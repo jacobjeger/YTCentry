@@ -139,6 +139,43 @@ export interface Dict {
     approvedMsg: string; // "{name}" "{userId}"
     noCandidates: string;
   };
+  directory: {
+    title: string;
+    subtitle: string;
+    searchPlaceholder: string;
+    empty: string;
+    name: string;
+    studentId: string;
+    shiur: string;
+    doorId: string;
+    status: string;
+    repush: string;
+    remove: string;
+    replacePhoto: string;
+    confirmRemove: string;
+    statusDraft: string;
+    statusPending: string;
+    statusPushed: string;
+    statusFailed: string;
+    statusRemoved: string;
+  };
+  settings: {
+    title: string;
+    subtitle: string;
+    deviceTarget: string;
+    scheduleDefault: string;
+    pushTransport: string;
+    configured: string;
+    notConfigured: string;
+    tunnelMode: string;
+    auditTitle: string;
+    auditEmpty: string;
+    actor: string;
+    action: string;
+    target: string;
+    when: string;
+    system: string;
+  };
   common: {
     comingSoon: string;
     error: string;
@@ -275,6 +312,44 @@ const en: Dict = {
     approvedMsg: "Approved {name} → door ID {userId}.",
     noCandidates: "No roster matches. Enter a student ID to match.",
   },
+  directory: {
+    title: "Directory",
+    subtitle:
+      "People this system enrolled on the door (automation IDs only). The 832 legacy records are not shown.",
+    searchPlaceholder: "Search name or student ID…",
+    empty: "No enrollees yet.",
+    name: "Name",
+    studentId: "Student ID",
+    shiur: "Shiur",
+    doorId: "Door ID",
+    status: "Status",
+    repush: "Re-push",
+    remove: "Remove",
+    replacePhoto: "Replace photo",
+    confirmRemove: "Remove this person from the door?",
+    statusDraft: "Draft",
+    statusPending: "Queued",
+    statusPushed: "On door",
+    statusFailed: "Failed",
+    statusRemoved: "Removed",
+  },
+  settings: {
+    title: "Settings",
+    subtitle: "Device target, defaults, and the audit log.",
+    deviceTarget: "Door target",
+    scheduleDefault: "Default schedule",
+    pushTransport: "Push transport",
+    configured: "Configured",
+    notConfigured: "Not configured",
+    tunnelMode: "Cloudflare tunnel (cloud push)",
+    auditTitle: "Recent activity",
+    auditEmpty: "No activity yet.",
+    actor: "Who",
+    action: "Action",
+    target: "Target",
+    when: "When",
+    system: "system",
+  },
   common: {
     comingSoon: "Coming soon.",
     error: "Something went wrong. Please try again.",
@@ -406,6 +481,43 @@ const he: Dict = {
     rosterMissing: "אין ברשימה תלמיד עם מספר זה.",
     approvedMsg: "אושר {name} ← מזהה דלת {userId}.",
     noCandidates: "אין התאמות ברשימה. הזינו מספר תלמיד להתאמה.",
+  },
+  directory: {
+    title: "מדריך",
+    subtitle: "האנשים שהמערכת רשמה בדלת (מזהי אוטומציה בלבד). 832 הרשומות הישנות אינן מוצגות.",
+    searchPlaceholder: "חיפוש לפי שם או מספר תלמיד…",
+    empty: "אין עדיין רשומים.",
+    name: "שם",
+    studentId: "מספר תלמיד",
+    shiur: "שיעור",
+    doorId: "מזהה דלת",
+    status: "סטטוס",
+    repush: "שליחה מחדש",
+    remove: "הסרה",
+    replacePhoto: "החלפת תמונה",
+    confirmRemove: "להסיר אדם זה מהדלת?",
+    statusDraft: "טיוטה",
+    statusPending: "בתור",
+    statusPushed: "בדלת",
+    statusFailed: "נכשל",
+    statusRemoved: "הוסר",
+  },
+  settings: {
+    title: "הגדרות",
+    subtitle: "יעד המכשיר, ברירות מחדל, ויומן הפעילות.",
+    deviceTarget: "יעד הדלת",
+    scheduleDefault: "לוח זמנים ברירת מחדל",
+    pushTransport: "אופן השליחה",
+    configured: "מוגדר",
+    notConfigured: "לא מוגדר",
+    tunnelMode: "מנהרת Cloudflare (שליחה מהענן)",
+    auditTitle: "פעילות אחרונה",
+    auditEmpty: "אין עדיין פעילות.",
+    actor: "מי",
+    action: "פעולה",
+    target: "יעד",
+    when: "מתי",
+    system: "מערכת",
   },
   common: {
     comingSoon: "בקרוב.",

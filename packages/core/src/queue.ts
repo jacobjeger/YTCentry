@@ -88,6 +88,15 @@ export async function completeJob(input: CompleteInput): Promise<void> {
       });
     }
 
+    // A successful DELETE removes the person from the door.
+    if (job.action === "DELETE" && input.ok) {
+      await tx.enrollee.update({
+        where: { id: job.enrolleeId },
+        data: { status: "REMOVED", lastError: null },
+      });
+      return;
+    }
+
     const jobs = await tx.pushJob.findMany({
       where: { enrolleeId: job.enrolleeId },
     });
