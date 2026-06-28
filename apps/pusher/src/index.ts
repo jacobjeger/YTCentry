@@ -105,8 +105,10 @@ async function main() {
     `ytc pusher up — ${cfg.dryRun ? "DRY_RUN (no device calls)" : `target ${cfg.akuvox.baseUrl}`}`,
   );
 
-  // Door snapshots need the real device + the web password; skip in DRY_RUN.
-  if (cfg.doorSnapshots && !cfg.dryRun && cfg.akuvox.webPassword) {
+  // Door snapshots are device READS via the /web session (only need the web
+  // password + a reachable baseUrl) — independent of DRY_RUN, which only mocks
+  // the push side.
+  if (cfg.doorSnapshots && cfg.akuvox.webPassword && cfg.akuvox.baseUrl) {
     doorLoop();
   }
 

@@ -24,7 +24,7 @@ import sharp from "sharp";
 
 const MAX_BYTES = 2 * 1024 * 1024; // device-friendly cap (<= 2MB)
 const MAX_EDGE = 1024; // downscale longest edge to this
-const MIN_EDGE = 200; // smaller than this can't be a usable face crop
+const MIN_EDGE = 160; // floor; the E16C's own door snapshots are ~180px short-edge
 const DARK_THRESHOLD = 40; // mean luminance below this = "too dark"
 
 export interface FaceValidation {
