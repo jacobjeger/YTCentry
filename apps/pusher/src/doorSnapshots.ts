@@ -7,10 +7,12 @@
  *
  * Dedup: one PhotoSubmission per access-log id (gmailMessageId = "door-<id>").
  *
- * NOTE on the filter: "unrecognized" = a face-type record with no matched user
- * (userID "-"). The captured sample window had no denied rows, so confirm the
- * exact representation (and the logstatus that surfaces denials) against a real
- * denied scan; tune FACE_TYPE / the filter / ACCESS_LOG_STATUS if needed.
+ * Filter CONFIRMED from a denied-scan capture (2026-06-28): a denied face is
+ *   { type: 4, status: 1, userID: "-", name: "Visitor", picture: <file> }
+ * vs a granted face (status 0, real userID). Denials get pushed past page 1 by
+ * granted scans, so we page back a few pages each poll (dedup makes re-reads
+ * harmless). ACCESS_LOG_STATUS can switch to a denied-only device filter if one
+ * is confirmed.
  */
 import {
   prisma,
@@ -18,23 +20,31 @@ import {
   validateFace,
   matchRoster,
   type AkuvoxClient,
+  type DoorLogRecord,
 } from "@ytc/core";
 
 const FACE_TYPE = 4; // type 4 = face recognition (12 = input/exit button)
+const STATUS_DENIED = 1; // 0 = granted, 1 = denied/unrecognized
 
 export async function pollDoorSnapshots(
   client: AkuvoxClient,
-  opts: { logstatus?: number } = {},
+  opts: { logstatus?: number; pages?: number } = {},
 ): Promise<number> {
-  const records = await client.getAccessLog({ page: 1, logstatus: opts.logstatus });
+  const pages = Math.max(1, opts.pages ?? 3);
+  const records: DoorLogRecord[] = [];
+  for (let page = 1; page <= pages; page++) {
+    const batch = await client.getAccessLog({ page, logstatus: opts.logstatus });
+    records.push(...batch);
+    if (batch.length === 0) break;
+  }
 
-  // Unrecognized face attempts are the ones worth enrolling.
-  const unknown = records.filter(
-    (r) => r.type === FACE_TYPE && (r.userID === "-" || r.userID === ""),
+  // Denied face scans (unrecognized "Visitor") are what we enroll from.
+  const denied = records.filter(
+    (r) => r.type === FACE_TYPE && r.status === STATUS_DENIED,
   );
 
   let created = 0;
-  for (const r of unknown) {
+  for (const r of denied) {
     if (!r.picture) continue;
     const messageId = `door-${r.id}`;
     const existing = await prisma.photoSubmission.findUnique({

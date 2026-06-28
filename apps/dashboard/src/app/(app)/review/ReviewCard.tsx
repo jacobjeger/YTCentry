@@ -44,6 +44,17 @@ export default function ReviewCard({ item }: { item: ReviewItem }) {
         className="w-32 h-32 rounded-lg object-cover bg-stone-100 shrink-0"
       />
       <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          {item.from === "door-scanner" ? (
+            <span className="text-xs rounded-full bg-amber-100 text-amber-800 px-2 py-0.5">
+              {t.review.sourceDoor}
+            </span>
+          ) : (
+            <span className="text-xs rounded-full bg-stone-100 text-stone-600 px-2 py-0.5">
+              {t.review.sourceEmail}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-stone-500">
           {t.review.from}: <span className="text-stone-700">{item.from}</span>
         </p>

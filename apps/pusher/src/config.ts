@@ -11,6 +11,7 @@ export interface PusherConfig {
   // DOOR_SNAPSHOTS=true and a web password is set.
   doorSnapshots: boolean;
   doorPollMs: number;
+  doorPages: number;
   accessLogStatus?: number;
   akuvox: {
     baseUrl: string;
@@ -35,6 +36,7 @@ export function loadConfig(): PusherConfig {
     batch: Number(process.env.PUSHER_BATCH ?? 5),
     doorSnapshots: process.env.DOOR_SNAPSHOTS === "true",
     doorPollMs: Number(process.env.DOOR_POLL_MS ?? 60000),
+    doorPages: Number(process.env.DOOR_PAGES ?? 3),
     accessLogStatus: process.env.ACCESS_LOG_STATUS
       ? Number(process.env.ACCESS_LOG_STATUS)
       : undefined,

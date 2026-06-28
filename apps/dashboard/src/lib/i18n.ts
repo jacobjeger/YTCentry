@@ -138,6 +138,8 @@ export interface Dict {
     rosterMissing: string;
     approvedMsg: string; // "{name}" "{userId}"
     noCandidates: string;
+    sourceDoor: string;
+    sourceEmail: string;
   };
   directory: {
     title: string;
@@ -312,6 +314,8 @@ const en: Dict = {
     rosterMissing: "No roster entry with that student ID.",
     approvedMsg: "Approved {name} → door ID {userId}.",
     noCandidates: "No roster matches. Enter a student ID to match.",
+    sourceDoor: "Door scan",
+    sourceEmail: "Email",
   },
   directory: {
     title: "Directory",
@@ -483,6 +487,8 @@ const he: Dict = {
     rosterMissing: "אין ברשימה תלמיד עם מספר זה.",
     approvedMsg: "אושר {name} ← מזהה דלת {userId}.",
     noCandidates: "אין התאמות ברשימה. הזינו מספר תלמיד להתאמה.",
+    sourceDoor: "סריקה בדלת",
+    sourceEmail: "מייל",
   },
   directory: {
     title: "מדריך",

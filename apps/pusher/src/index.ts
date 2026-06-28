@@ -88,7 +88,10 @@ async function doorLoop() {
   console.log("ytc pusher: door-snapshot polling enabled");
   while (running) {
     try {
-      const n = await pollDoorSnapshots(client, { logstatus: cfg.accessLogStatus });
+      const n = await pollDoorSnapshots(client, {
+        logstatus: cfg.accessLogStatus,
+        pages: cfg.doorPages,
+      });
       if (n) console.log(`[door] ${n} new snapshot(s) queued for review`);
     } catch (e) {
       console.error("[door loop error]", e);
