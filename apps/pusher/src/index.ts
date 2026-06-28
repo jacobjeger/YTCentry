@@ -15,6 +15,7 @@ import {
   type ClaimedJob,
 } from "@ytc/core";
 import { loadConfig } from "./config";
+import { pollDoorSnapshots } from "./doorSnapshots";
 
 const cfg = loadConfig();
 const client = new AkuvoxClient({ ...cfg.akuvox, timeoutMs: 12000 });
@@ -82,10 +83,30 @@ async function tick(): Promise<number> {
   return jobs.length;
 }
 
+/** Separate, slower loop: pull denied door scans into the Review Queue. */
+async function doorLoop() {
+  console.log("ytc pusher: door-snapshot polling enabled");
+  while (running) {
+    try {
+      const n = await pollDoorSnapshots(client, { logstatus: cfg.accessLogStatus });
+      if (n) console.log(`[door] ${n} new snapshot(s) queued for review`);
+    } catch (e) {
+      console.error("[door loop error]", e);
+    }
+    await sleep(cfg.doorPollMs);
+  }
+}
+
 async function main() {
   console.log(
     `ytc pusher up — ${cfg.dryRun ? "DRY_RUN (no device calls)" : `target ${cfg.akuvox.baseUrl}`}`,
   );
+
+  // Door snapshots need the real device + the web password; skip in DRY_RUN.
+  if (cfg.doorSnapshots && !cfg.dryRun && cfg.akuvox.webPassword) {
+    doorLoop();
+  }
+
   while (running) {
     let n = 0;
     try {

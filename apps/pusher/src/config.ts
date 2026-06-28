@@ -7,12 +7,19 @@ export interface PusherConfig {
   dryRun: boolean;
   pollMs: number;
   batch: number;
+  // Door-snapshot enrollment (denied scans → Review Queue). Off unless
+  // DOOR_SNAPSHOTS=true and a web password is set.
+  doorSnapshots: boolean;
+  doorPollMs: number;
+  accessLogStatus?: number;
   akuvox: {
     baseUrl: string;
     apiUser: string;
     apiPassword: string;
     cfAccessClientId?: string;
     cfAccessClientSecret?: string;
+    webUser?: string;
+    webPassword?: string;
   };
 }
 
@@ -26,12 +33,19 @@ export function loadConfig(): PusherConfig {
     dryRun,
     pollMs: Number(process.env.PUSHER_POLL_MS ?? 3000),
     batch: Number(process.env.PUSHER_BATCH ?? 5),
+    doorSnapshots: process.env.DOOR_SNAPSHOTS === "true",
+    doorPollMs: Number(process.env.DOOR_POLL_MS ?? 60000),
+    accessLogStatus: process.env.ACCESS_LOG_STATUS
+      ? Number(process.env.ACCESS_LOG_STATUS)
+      : undefined,
     akuvox: {
       baseUrl,
       apiUser: process.env.AKUVOX_API_USER ?? "admin",
       apiPassword: process.env.AKUVOX_API_PASSWORD ?? "",
       cfAccessClientId: process.env.CF_ACCESS_CLIENT_ID || undefined,
       cfAccessClientSecret: process.env.CF_ACCESS_CLIENT_SECRET || undefined,
+      webUser: process.env.AKUVOX_WEB_USER || undefined,
+      webPassword: process.env.AKUVOX_WEB_PASSWORD || undefined,
     },
   };
 }

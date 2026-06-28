@@ -16,6 +16,8 @@
  * It must never add/set/del a record below that line. assertManagedId() enforces it.
  */
 
+import { createHash, randomBytes } from "crypto";
+
 const ID_BAND_START = 100000; // automation owns UserIDs >= this; humans own < this.
 
 export interface AkuvoxUser {
@@ -34,18 +36,24 @@ export interface AkuvoxUser {
 }
 
 /**
- * A door-log record. Field names are UNCONFIRMED (vary by firmware) — keep this
- * permissive until a live /api/doorlog/get capture pins them down. Common fields
- * across Akuvox firmwares are listed; the snapshot is referenced by some path.
+ * A door access-log record. Shape CONFIRMED from a live /web/accesslog/get
+ * capture (E16C V2.0, 2026-06-28):
+ *   { id, userID, name, code, relay, type, date, time, status, picture }
+ * - type 4 = face recognition, 12 = input/exit button (other types: card/PIN).
+ * - userID "-" = no user matched (an unrecognized scan — what we enroll from).
+ * - picture "2026-06-28_19-41-9.jpg" → fetched at /Image/DoorPicture/<picture>.
  */
 export interface DoorLogRecord {
-  [key: string]: unknown;
-  Time?: string;
-  Name?: string;
-  UserID?: string;
-  Status?: string; // e.g. "Success" / "Failed" / access result
-  Type?: string; // e.g. "Face" / "PIN" / "Card"
-  Pic?: string; // snapshot path/url when Save Picture is enabled
+  id: number;
+  userID: string;
+  name: string;
+  code: string;
+  relay: string;
+  type: number;
+  date: string;
+  time: string;
+  status: number;
+  picture: string;
 }
 
 export interface AkuvoxConfig {
@@ -57,6 +65,10 @@ export interface AkuvoxConfig {
   // Access-gated tunnel hostname (cloud push). Omit for direct LAN access.
   cfAccessClientId?: string;
   cfAccessClientSecret?: string;
+  // Web-UI login (separate from the HTTP API password). Used for the /web
+  // session transport — required only for the access log / door snapshots.
+  webUser?: string;       // default "admin"
+  webPassword?: string;   // the WEB login password
 }
 
 export class AkuvoxError extends Error {
@@ -145,21 +157,121 @@ export class AkuvoxClient {
     return all.find((u) => u.UserID === String(userId)) ?? null;
   }
 
+  // ───────────────────────── /web session transport ─────────────────────────
+  // The access log lives under the session-based /web API (not Basic /api).
+  // Login (CONFIRMED from capture): the device's "encrypt" is just md5(password),
+  // so we log in with md5 directly. A client-chosen session id is registered by
+  // the login call; the response token becomes the session for later requests.
+
+  private webSession: string | null = null;
+
+  /** Log into the /web API and cache the session token. */
+  async webLogin(): Promise<string> {
+    const password = this.cfg.webPassword;
+    if (!password) throw new AkuvoxError("webPassword is not configured.");
+    const session = randomBytes(4).toString("hex").toUpperCase();
+    const md5pw = createHash("md5").update(password).digest("hex");
+    const body = await this.webPost(
+      {
+        target: "login",
+        action: "login",
+        data: { userName: this.cfg.webUser ?? "admin", password: md5pw },
+        session,
+        web: "1",
+      },
+      session,
+    );
+    const token = body?.data?.token as string | undefined;
+    if (!token) throw new AkuvoxError("Web login failed (no token).", body);
+    this.webSession = token;
+    return token;
+  }
+
+  private async ensureSession(): Promise<string> {
+    return this.webSession ?? (await this.webLogin());
+  }
+
+  private async webPost(payload: unknown, session: string): Promise<any> {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), this.timeout);
+    try {
+      const res = await fetch(`${this.cfg.baseUrl}/web`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json;charset=UTF-8",
+          ...this.cfHeaders(),
+        },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} from /web.`);
+      return await res.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
   /**
-   * Pull the device's door log (access records). The E16C captures a snapshot on
-   * each access attempt when **Save Picture** is enabled in the device settings;
-   * those snapshots are what let us enroll someone straight from a denied scan.
-   *
-   * UNCONFIRMED SHAPE — like the enrollFace transport, the exact response fields
-   * and how the snapshot image is referenced/fetched must be confirmed against
-   * the live device once Save Picture is on (capture one /api/doorlog/get on the
-   * Logs page). Returns the raw items so the caller can adapt. Records typically
-   * carry a timestamp, an access result (granted/denied), the matched name/UserID
-   * when recognized, and a picture path when Save Picture is on.
+   * Pull a page of the door access log. Records carry the captured snapshot
+   * filename (see DoorLogRecord). Re-logs in once on an expired session.
+   * `logstatus` is the device's log filter (the UI used 3); leave as-is unless
+   * you've confirmed the value that surfaces denied/unrecognized scans.
    */
-  async getDoorLogs(): Promise<DoorLogRecord[]> {
-    const body = await this.call("doorlog", "get");
-    return (body?.data?.item ?? []) as DoorLogRecord[];
+  async getAccessLog(opts: { page?: number; logstatus?: number } = {}): Promise<DoorLogRecord[]> {
+    const fetchPage = async (session: string) => {
+      const q = new URLSearchParams({
+        page: String(opts.page ?? 1),
+        search: "",
+        logstatus: String(opts.logstatus ?? 3),
+        starttime: "",
+        endtime: "",
+        session,
+        web: "1",
+      });
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), this.timeout);
+      try {
+        const res = await fetch(`${this.cfg.baseUrl}/web/accesslog/get?${q}`, {
+          headers: this.cfHeaders(),
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on accesslog/get.`);
+        return await res.json();
+      } finally {
+        clearTimeout(t);
+      }
+    };
+
+    let session = await this.ensureSession();
+    let body = await fetchPage(session);
+    if (body?.retcode === -100) {
+      // expired session — re-login once
+      this.webSession = null;
+      session = await this.webLogin();
+      body = await fetchPage(session);
+    }
+    return (body?.data?.accesslogList ?? []) as DoorLogRecord[];
+  }
+
+  /** URL of a captured door snapshot (the image itself needs no auth on-device). */
+  doorPictureUrl(picture: string): string {
+    return `${this.cfg.baseUrl}/Image/DoorPicture/${encodeURIComponent(picture)}`;
+  }
+
+  /** Fetch a captured door snapshot's bytes (sends CF headers when tunneled). */
+  async getDoorPicture(picture: string): Promise<Uint8Array> {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), this.timeout);
+    try {
+      const res = await fetch(this.doorPictureUrl(picture), {
+        headers: this.cfHeaders(),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} fetching snapshot.`);
+      return new Uint8Array(await res.arrayBuffer());
+    } finally {
+      clearTimeout(t);
+    }
   }
 
   /** Highest UserID currently on the device (across ALL bands) — for safe allocation. */
