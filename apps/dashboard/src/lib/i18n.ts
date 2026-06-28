@@ -164,6 +164,7 @@ export interface Dict {
     replacePhoto: string;
     download: string;
     confirmRemove: string;
+    confirmRemoveLegacy: string;
     statusDraft: string;
     statusPending: string;
     statusPushed: string;
@@ -361,6 +362,8 @@ const en: Dict = {
     replacePhoto: "Replace photo",
     download: "Download",
     confirmRemove: "Remove this person from the door?",
+    confirmRemoveLegacy:
+      "⚠ This is a PRE-EXISTING record, not added by this system. Deleting it from the door is permanent and could lock them out. Are you sure?",
     statusDraft: "Draft",
     statusPending: "Queued",
     statusPushed: "On door",
@@ -552,6 +555,8 @@ const he: Dict = {
     replacePhoto: "החלפת תמונה",
     download: "הורדה",
     confirmRemove: "להסיר אדם זה מהדלת?",
+    confirmRemoveLegacy:
+      "⚠ זוהי רשומה קיימת מראש, שלא נוספה על ידי המערכת. מחיקתה מהדלת היא לצמיתות ועלולה לחסום כניסה. בטוחים?",
     statusDraft: "טיוטה",
     statusPending: "בתור",
     statusPushed: "בדלת",

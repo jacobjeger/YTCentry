@@ -360,10 +360,7 @@ export class AkuvoxClient {
     return list.find((u) => String(u.userID) === id) ?? null;
   }
 
-  /** Delete a user via the /web session transport. */
-  async delUserWeb(userId: string | number): Promise<void> {
-    this.assertManagedId(userId);
-    const id = String(userId);
+  private async _delWeb(id: string): Promise<void> {
     const post = async (session: string) => {
       const res = await fetch(`${this.cfg.baseUrl}/web`, {
         method: "POST",
@@ -380,6 +377,18 @@ export class AkuvoxClient {
       this.webSession = null;
       body = await post(await this.webLogin());
     }
+  }
+
+  /** Delete a user via /web — automation band only (the queued DELETE path). */
+  async delUserWeb(userId: string | number): Promise<void> {
+    this.assertManagedId(userId);
+    await this._delWeb(String(userId));
+  }
+
+  /** Delete ANY user via /web, bypassing the band guard. Admin device management
+   *  only (explicit, confirmed action in the Directory) — never the automation. */
+  async delAnyUserWeb(userId: string | number): Promise<void> {
+    await this._delWeb(String(userId));
   }
 
   private async webUserPage(page: number, session: string): Promise<any> {
