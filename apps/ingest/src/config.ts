@@ -10,12 +10,12 @@ export interface IngestConfig {
   pollMs: number;
 }
 
-export function loadConfig(): IngestConfig {
+/** Returns null (rather than throwing) when Gmail creds aren't set yet, so the
+ *  Railway service can stay up and idle until the app password is configured. */
+export function loadConfig(): IngestConfig | null {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) {
-    throw new Error("GMAIL_USER and GMAIL_APP_PASSWORD are required");
-  }
+  if (!user || !pass) return null;
   return {
     user,
     pass,

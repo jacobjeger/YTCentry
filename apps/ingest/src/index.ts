@@ -8,10 +8,9 @@
  */
 import { ImapFlow } from "imapflow";
 import { simpleParser, type ParsedMail } from "mailparser";
-import { loadConfig } from "./config";
+import { loadConfig, type IngestConfig } from "./config";
 import { processMessage, type IncomingMessage } from "./processMessage";
 
-const cfg = loadConfig();
 let running = true;
 process.on("SIGINT", () => (running = false));
 process.on("SIGTERM", () => (running = false));
@@ -29,7 +28,7 @@ function firstImage(
   return null;
 }
 
-async function pollOnce(): Promise<number> {
+async function pollOnce(cfg: IngestConfig): Promise<number> {
   const client = new ImapFlow({
     host: cfg.host,
     port: cfg.port,
@@ -90,11 +89,11 @@ async function pollOnce(): Promise<number> {
   return processed;
 }
 
-async function main() {
+async function main(cfg: IngestConfig) {
   console.log(`ytc ingest up — mailbox ${cfg.user}`);
   while (running) {
     try {
-      const n = await pollOnce();
+      const n = await pollOnce(cfg);
       if (n) console.log(`[ingest] processed ${n} new submission(s)`);
     } catch (e) {
       console.error("[ingest] poll error:", e);
@@ -104,4 +103,12 @@ async function main() {
   console.log("ytc ingest shutting down");
 }
 
-main();
+const cfg = loadConfig();
+if (!cfg) {
+  // No Gmail creds yet — stay alive and idle so the deploy stays healthy. Set
+  // GMAIL_USER + GMAIL_APP_PASSWORD to start polling (see .env.example).
+  console.log("ytc ingest: GMAIL_USER/GMAIL_APP_PASSWORD not set — idling.");
+  setInterval(() => {}, 1 << 30);
+} else {
+  main(cfg);
+}
