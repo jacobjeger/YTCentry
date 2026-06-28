@@ -5,7 +5,9 @@
  * on-site agent never touches storage — it receives image bytes via the PushJob
  * payload reference, fetched server-side and handed to it.
  *
- * MinIO requires path-style addressing (no virtual-hosted bucket subdomains).
+ * Backed by Railway's native S3-compatible Buckets (region "auto", virtual-host
+ * URL style). Set S3_FORCE_PATH_STYLE=true if pointing at a path-style store
+ * (e.g. self-hosted MinIO) instead.
  */
 import {
   S3Client,
@@ -27,9 +29,9 @@ let _client: S3Client | null = null;
 function client(): S3Client {
   if (_client) return _client;
   _client = new S3Client({
-    endpoint: env("S3_ENDPOINT"), // e.g. https://minio-production.up.railway.app
-    region: process.env.S3_REGION ?? "us-east-1",
-    forcePathStyle: true, // MinIO
+    endpoint: env("S3_ENDPOINT"), // e.g. https://t3.storageapi.dev (Railway)
+    region: process.env.S3_REGION ?? "auto",
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
     credentials: {
       accessKeyId: env("S3_ACCESS_KEY"),
       secretAccessKey: env("S3_SECRET_KEY"),
