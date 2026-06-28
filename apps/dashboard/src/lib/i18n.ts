@@ -193,6 +193,10 @@ export interface Dict {
     sortNameZa: string;
     refresh: string;
     syncing: string;
+    edit: string;
+    save: string;
+    saving: string;
+    editTitle: string;
   };
   settings: {
     title: string;
@@ -403,6 +407,10 @@ const en: Dict = {
     sortNameZa: "Name Z–A",
     refresh: "Refresh",
     syncing: "Syncing…",
+    edit: "Edit",
+    save: "Save",
+    saving: "Saving…",
+    editTitle: "Edit person",
   },
   settings: {
     title: "Settings",
@@ -607,6 +615,10 @@ const he: Dict = {
     sortNameZa: "שם ת׳–א׳",
     refresh: "רענון",
     syncing: "מסנכרן…",
+    edit: "עריכה",
+    save: "שמירה",
+    saving: "שומר…",
+    editTitle: "עריכת אדם",
   },
   settings: {
     title: "הגדרות",

@@ -113,6 +113,85 @@ export async function refreshDirectory(deviceId?: string): Promise<{ error?: str
   }
 }
 
+export interface PersonDetail {
+  name: string;
+  pin: string;
+  group: string;
+  groups: string[];
+  error?: string;
+}
+
+/** Fetch a person's current name/PIN/group from the door, plus the group list. */
+export async function getPersonDetail(
+  userID: string,
+  deviceId?: string,
+): Promise<PersonDetail> {
+  await requireUser();
+  try {
+    const client = await deviceClientById(deviceId);
+    const u = (await client.findUserWeb(userID)) as Record<string, unknown> | null;
+    if (!u) return { name: "", pin: "", group: "", groups: [], error: "not found" };
+    const groups = await client.getGroupsViaWeb();
+    return {
+      name: String(u.name ?? "").trim(),
+      pin: String(u.privatePIN ?? ""),
+      group: String(u.Group ?? "").trim(),
+      groups,
+    };
+  } catch (e) {
+    return { name: "", pin: "", group: "", groups: [], error: e instanceof Error ? e.message : "failed" };
+  }
+}
+
+/** Save edits (name/PIN/group) to an existing person on the door — face is kept. */
+export async function savePersonEdit(
+  _prev: DirState,
+  formData: FormData,
+): Promise<DirState> {
+  const user = await requireUser();
+  const userID = String(formData.get("userID") ?? "").trim();
+  const deviceId = String(formData.get("deviceId") ?? "") || undefined;
+  const name = String(formData.get("name") ?? "").trim();
+  const pin = String(formData.get("pin") ?? "").trim();
+  const group = String(formData.get("group") ?? "").trim();
+  if (!userID) return { error: "Missing user." };
+
+  try {
+    const client = await deviceClientById(deviceId);
+    await client.editUserWeb(userID, {
+      name: name || undefined,
+      pin, // empty string intentionally clears the PIN
+      group: group || undefined,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "The door rejected the edit." };
+  }
+
+  const n = Number(userID);
+  if (n >= ID_BAND_START) {
+    await prisma.enrollee.updateMany({
+      where: { akuvoxUserId: n },
+      data: {
+        ...(name ? { displayName: name } : {}),
+        pin: pin || null,
+        groupName: group || null,
+      },
+    });
+  }
+  if (deviceId && name) {
+    await prisma.deviceUserCache.updateMany({ where: { deviceId, userID }, data: { name } });
+  }
+  await audit({
+    actorId: user.id,
+    action: "enrollee.update",
+    targetType: "DeviceUser",
+    targetId: userID,
+    meta: { pinSet: !!pin, group },
+  });
+  revalidatePath("/directory");
+  return { ok: "saved" };
+}
+
 /** Delete ANY user from the door (admin device management; confirmed in the UI). */
 export async function deleteFromDoor(formData: FormData) {
   const user = await requireUser();

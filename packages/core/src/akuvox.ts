@@ -363,6 +363,67 @@ export class AkuvoxClient {
     return list.find((u) => String(u.userID) === id) ?? null;
   }
 
+  /**
+   * Edit an existing user's fields (PIN / group / name) WITHOUT re-uploading the
+   * face. CONFIRMED from capture: POST /web/user/edit with every field in the
+   * query string, faceupload=0 + FaceStatus preserved + an empty multipart file
+   * part. Reads the user first to preserve all the other fields. Works on ANY
+   * UserID (legacy included) — used only by explicit admin edits.
+   */
+  async editUserWeb(
+    userId: string | number,
+    fields: { pin?: string; group?: string; name?: string },
+  ): Promise<void> {
+    const u = await this.findUserWeb(userId);
+    if (!u) throw new AkuvoxError(`User ${userId} not found on the door.`);
+    const g = (k: string, d = ""): string => (u[k] != null ? String(u[k]) : d);
+    const schedule = g("Schedule", "1001-1");
+    const hasFace = Number(u.faceID ?? 0) > 0;
+
+    const post = async (session: string) => {
+      const q = new URLSearchParams({
+        UserID: g("userID", String(userId)),
+        name: fields.name ?? g("name"),
+        PrivatePIN: fields.pin ?? g("privatePIN"),
+        RFcard: g("card"),
+        Floor: g("Floor", "0"),
+        WebRelay: g("webRelay", "0"),
+        id: g("id"),
+        faceID: g("faceID", "0"),
+        Phone: g("Phone"),
+        Group: fields.group ?? g("Group", "Default"),
+        Priority: g("Priority", "0"),
+        DialAccount: g("DialAccount", "0"),
+        relay: g("relay", "1"),
+        Schedule: schedule,
+        Schedule1: schedule.split("-")[0] ?? "1001",
+        FaceStatus: hasFace ? "1" : "0",
+        faceupload: "0",
+        web: "1",
+        session,
+      });
+      const fd = new FormData();
+      fd.append("file", new Blob([])); // empty file part, like the device web UI
+      const res = await fetch(`${this.cfg.baseUrl}/web/user/edit?${q}`, {
+        method: "POST",
+        headers: this.cfHeaders(),
+        body: fd,
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web/user/edit.`);
+      return res.json();
+    };
+
+    let body = await post(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await post(await this.webLogin());
+    }
+    const ok =
+      (body?.retcode === 0 || body?.retcode === 1) &&
+      String(body?.message ?? "").toLowerCase() === "ok";
+    if (!ok) throw new AkuvoxError("Device rejected the edit.", body);
+  }
+
   private async _delWeb(id: string): Promise<void> {
     const post = async (session: string) => {
       const res = await fetch(`${this.cfg.baseUrl}/web`, {

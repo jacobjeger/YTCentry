@@ -12,6 +12,7 @@ import {
   type DirState,
   type DoorOption,
 } from "./actions";
+import EditPersonModal from "./EditPersonModal";
 
 const PAGE_SIZE = 50;
 
@@ -38,6 +39,7 @@ export default function UnifiedDirectory() {
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
 
   async function reload() {
     setRows(null);
@@ -182,7 +184,12 @@ export default function UnifiedDirectory() {
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {paged.map((r) => (
-                    <Row key={r.userID} r={r} deviceId={door} />
+                    <Row
+                      key={r.userID}
+                      r={r}
+                      deviceId={door}
+                      onEdit={() => setEditing(r.userID)}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -211,11 +218,28 @@ export default function UnifiedDirectory() {
           </div>
         </>
       )}
+
+      {editing ? (
+        <EditPersonModal
+          userID={editing}
+          deviceId={door}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+        />
+      ) : null}
     </div>
   );
 }
 
-function Row({ r, deviceId }: { r: DirRow; deviceId: string }) {
+function Row({
+  r,
+  deviceId,
+  onEdit,
+}: {
+  r: DirRow;
+  deviceId: string;
+  onEdit: () => void;
+}) {
   const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceFormRef = useRef<HTMLFormElement>(null);
@@ -262,6 +286,13 @@ function Row({ r, deviceId }: { r: DirRow; deviceId: string }) {
       </td>
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-3 justify-end whitespace-nowrap">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="text-xs text-bronze-dark hover:underline"
+          >
+            {t.directory.edit}
+          </button>
           {r.managed && r.enrolleeId ? (
             <>
               <a
