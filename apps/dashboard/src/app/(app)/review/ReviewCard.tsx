@@ -20,7 +20,13 @@ export interface ReviewItem {
   candidates: { studentId: string; name: string; score: number }[];
 }
 
-export default function ReviewCard({ item }: { item: ReviewItem }) {
+export default function ReviewCard({
+  item,
+  groups,
+}: {
+  item: ReviewItem;
+  groups: string[];
+}) {
   const t = useT();
   const [aState, approveAction, aPending] = useActionState<ReviewState, FormData>(
     approveSubmission,
@@ -78,12 +84,25 @@ export default function ReviewCard({ item }: { item: ReviewItem }) {
             defaultValue={item.parsedName ?? ""}
             required
             placeholder={t.review.namePlaceholder}
-            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm flex-1 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-bronze"
+            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm flex-1 min-w-[120px] focus:outline-none focus:ring-2 focus:ring-bronze"
           />
+          <select
+            name="groupName"
+            defaultValue=""
+            className="rounded-lg border border-stone-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-bronze"
+          >
+            <option value="">{t.enroll.groupNone}</option>
+            {groups.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
           <input
-            name="studentId"
-            placeholder={t.review.otherIdPlaceholder}
-            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-bronze"
+            name="pin"
+            inputMode="numeric"
+            placeholder={t.enroll.pinLabel}
+            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-bronze"
           />
           <button
             type="submit"

@@ -93,7 +93,8 @@ export async function enrollByName(
 
   const submissionId = String(formData.get("submissionId") ?? "");
   const displayName = String(formData.get("displayName") ?? "").trim();
-  const studentId = String(formData.get("studentId") ?? "").trim() || null;
+  const groupName = String(formData.get("groupName") ?? "").trim() || null;
+  const pin = String(formData.get("pin") ?? "").trim() || null;
   if (!displayName) return { error: t.review.needName };
 
   const submission = await prisma.photoSubmission.findUnique({
@@ -113,7 +114,8 @@ export async function enrollByName(
   try {
     const { enrollee, pushed, deviceError } = await enrollPerson({
       displayName,
-      studentId,
+      groupName,
+      pin,
       source: "MANUAL",
       image: bytes,
       actorId: user.id,

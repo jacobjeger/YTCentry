@@ -3,7 +3,8 @@ import { prisma, signedPhotoUrl, type Prisma } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
-import ReviewCard, { type ReviewItem } from "./ReviewCard";
+import { type ReviewItem } from "./ReviewCard";
+import ReviewList from "./ReviewList";
 
 export const dynamic = "force-dynamic";
 
@@ -88,11 +89,7 @@ export default async function ReviewPage({
           {t.review.empty}
         </div>
       ) : (
-        <div className="flex flex-col gap-5">
-          {items.map((item) => (
-            <ReviewCard key={item.id} item={item} />
-          ))}
-        </div>
+        <ReviewList items={items} />
       )}
     </div>
   );
