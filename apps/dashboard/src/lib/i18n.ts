@@ -72,6 +72,13 @@ export interface Dict {
     addBody: string;
     reviewTitle: string;
     reviewBody: string;
+    whatToDo: string;
+    tempTitle: string;
+    tempBody: string;
+    rosterTitle: string;
+    rosterBody: string;
+    dirTitle: string;
+    dirBody: string;
   };
   enroll: {
     title: string;
@@ -321,6 +328,13 @@ const en: Dict = {
     reviewTitle: "Review photos",
     reviewBody:
       "Approve incoming photos (emailed or denied door scans) and add them to the door.",
+    whatToDo: "What would you like to do?",
+    tempTitle: "Make a guest code",
+    tempBody: "Create a temporary entry code that expires on its own.",
+    rosterTitle: "Student list",
+    rosterBody: "See who still needs a photo and add incoming students.",
+    dirTitle: "Everyone on the door",
+    dirBody: "Search, edit, or remove people already on the scanner.",
   },
   enroll: {
     title: "Add a person",
@@ -575,6 +589,13 @@ const he: Dict = {
     addBody: "הקלידו שם, צלמו או העלו תמונה, ושלחו אותו לדלת.",
     reviewTitle: "אישור תמונות",
     reviewBody: "אישור תמונות נכנסות (מהמייל או סריקות שנדחו) והוספתן לדלת.",
+    whatToDo: "מה תרצו לעשות?",
+    tempTitle: "יצירת קוד אורח",
+    tempBody: "צרו קוד כניסה זמני שפג מעצמו.",
+    rosterTitle: "רשימת תלמידים",
+    rosterBody: "ראו מי עדיין חסר תמונה והוסיפו תלמידים נכנסים.",
+    dirTitle: "כל מי שעל הדלת",
+    dirBody: "חיפוש, עריכה או הסרה של אנשים שכבר במכשיר.",
   },
   enroll: {
     title: "הוספת אדם",

@@ -48,18 +48,44 @@ export default async function Home() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <ActionCard
-          href="/enroll"
-          title={t.home.addTitle}
-          body={t.home.addBody}
-          primary
-        />
-        <ActionCard
-          href="/review"
-          title={t.home.reviewTitle}
-          body={t.home.reviewBody}
-        />
+      <div>
+        <h2 className="text-sm font-medium uppercase tracking-wide text-stone-400 mb-3">
+          {t.home.whatToDo}
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ActionCard
+            href="/enroll"
+            icon="➕"
+            title={t.home.addTitle}
+            body={t.home.addBody}
+            primary
+          />
+          <ActionCard
+            href="/review"
+            icon="📷"
+            title={t.home.reviewTitle}
+            body={t.home.reviewBody}
+            badge={s.needsReview > 0 ? s.needsReview : undefined}
+          />
+          <ActionCard
+            href="/temp-pins"
+            icon="🔑"
+            title={t.home.tempTitle}
+            body={t.home.tempBody}
+          />
+          <ActionCard
+            href="/roster"
+            icon="📋"
+            title={t.home.rosterTitle}
+            body={t.home.rosterBody}
+          />
+          <ActionCard
+            href="/directory"
+            icon="👥"
+            title={t.home.dirTitle}
+            body={t.home.dirBody}
+          />
+        </div>
       </div>
     </div>
   );
@@ -93,23 +119,35 @@ function StatCard({
 
 function ActionCard({
   href,
+  icon,
   title,
   body,
   primary,
+  badge,
 }: {
   href: string;
+  icon: string;
   title: string;
   body: string;
   primary?: boolean;
+  badge?: number;
 }) {
   return (
     <Link
       href={href}
-      className={`rounded-xl border p-6 transition-shadow hover:shadow-sm ${
+      className={`relative flex flex-col rounded-2xl border p-6 transition-all hover:shadow-md hover:-translate-y-0.5 ${
         primary ? "border-bronze bg-bronze/5" : "border-stone-200 bg-white"
       }`}
     >
-      <h2 className="text-lg font-semibold text-bronze-dark">{title}</h2>
+      {badge ? (
+        <span className="absolute top-4 end-4 min-w-6 h-6 px-1.5 grid place-items-center rounded-full bg-red-500 text-white text-xs font-semibold">
+          {badge}
+        </span>
+      ) : null}
+      <span className="text-3xl mb-3" aria-hidden>
+        {icon}
+      </span>
+      <h3 className="text-lg font-semibold text-bronze-dark">{title}</h3>
       <p className="text-sm text-stone-600 mt-1">{body}</p>
     </Link>
   );
