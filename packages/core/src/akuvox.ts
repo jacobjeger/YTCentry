@@ -253,6 +253,105 @@ export class AkuvoxClient {
     return (body?.data?.accesslogList ?? []) as DoorLogRecord[];
   }
 
+  /**
+   * Create (or replace) a user AND attach the face in ONE call via the /web
+   * session transport — the CONFIRMED working path (POST /web/user/set with the
+   * user fields in the query string + the image as a multipart `file`, id=0 &
+   * faceID=0 to create). This is how the device's own web UI does it, so it
+   * works without the separate HTTP-API password. Re-logs in on session expiry.
+   */
+  async pushUserWeb(opts: {
+    userId: string | number;
+    name: string;
+    image: Uint8Array;
+    mime?: "image/jpeg" | "image/png";
+    scheduleRelay?: string;
+  }): Promise<void> {
+    this.assertManagedId(opts.userId);
+    const id = String(opts.userId);
+    const sched = opts.scheduleRelay ?? "1001-1";
+
+    const post = async (session: string) => {
+      const q = new URLSearchParams({
+        UserID: id, name: opts.name, PrivatePIN: "", RFcard: "", Floor: "0",
+        WebRelay: "0", id: "0", faceID: "0", Phone: "", Group: "Default",
+        Priority: "0", DialAccount: "0", relay: sched.split("-")[1] ?? "1",
+        Schedule: sched, Schedule1: sched.split("-")[0] ?? "1001",
+        faceupload: "1", web: "1", session,
+      });
+      const fd = new FormData();
+      fd.append(
+        "file",
+        new Blob([opts.image as BlobPart], { type: opts.mime ?? "image/jpeg" }),
+        opts.mime === "image/png" ? "face.png" : "face.jpg",
+      );
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), this.timeout);
+      try {
+        const res = await fetch(`${this.cfg.baseUrl}/web/user/set?${q}`, {
+          method: "POST",
+          headers: this.cfHeaders(),
+          body: fd,
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web/user/set.`);
+        return await res.json();
+      } finally {
+        clearTimeout(t);
+      }
+    };
+
+    let body = await post(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await post(await this.webLogin());
+    }
+    const ok =
+      (body?.retcode === 0 || body?.retcode === 1) &&
+      String(body?.message ?? "").toLowerCase() === "ok";
+    if (!ok) throw new AkuvoxError("Device rejected /web/user/set.", body);
+  }
+
+  /** Delete a user via the /web session transport. */
+  async delUserWeb(userId: string | number): Promise<void> {
+    this.assertManagedId(userId);
+    const id = String(userId);
+    const post = async (session: string) => {
+      const res = await fetch(`${this.cfg.baseUrl}/web`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json;charset=UTF-8", ...this.cfHeaders() },
+        body: JSON.stringify({
+          target: "user", action: "del", data: { item: [{ ID: id }] }, session, web: "1",
+        }),
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web user del.`);
+      return res.json();
+    };
+    let body = await post(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await post(await this.webLogin());
+    }
+  }
+
+  /** Read the user directory via /web (for verifying a push without the API pass). */
+  async getUsersViaWeb(): Promise<Record<string, unknown>[]> {
+    const get = async (session: string) => {
+      const q = new URLSearchParams({ session, web: "1" });
+      const res = await fetch(`${this.cfg.baseUrl}/web/user/get?${q}`, {
+        headers: this.cfHeaders(),
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web/user/get.`);
+      return res.json();
+    };
+    let body = await get(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await get(await this.webLogin());
+    }
+    return (body?.data?.item ?? body?.data?.userList ?? body?.data ?? []) as Record<string, unknown>[];
+  }
+
   /** URL of a captured door snapshot (the image itself needs no auth on-device). */
   doorPictureUrl(picture: string): string {
     return `${this.cfg.baseUrl}/Image/DoorPicture/${encodeURIComponent(picture)}`;

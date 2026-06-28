@@ -37,31 +37,26 @@ async function execute(job: ClaimedJob): Promise<{ faceUrl?: string }> {
     return job.action === "UPDATE_FACE" ? { faceUrl: "dryrun://face" } : {};
   }
 
+  // We use the CONFIRMED /web session transport (pushUserWeb) — the device's own
+  // web UI path — which works with the web login and needs no separate HTTP-API
+  // password. A single /web/user/set (id=0,faceID=0) creates the user AND
+  // attaches the face, so ADD is a no-op here and UPDATE_FACE does the real work.
   switch (job.action) {
-    case "ADD": {
-      await client.addUser({
-        userId: job.akuvoxUserId,
-        name: job.name,
-        scheduleRelay: job.scheduleRelay,
-      });
+    case "ADD":
       return {};
-    }
     case "UPDATE_FACE": {
       if (!job.photoUrl) throw new Error("UPDATE_FACE job has no photo");
       const image = await fetchImage(job.photoUrl);
-      await client.enrollFace({
+      await client.pushUserWeb({
         userId: job.akuvoxUserId,
         name: job.name,
         image,
         scheduleRelay: job.scheduleRelay,
-        isNew: false, // the ADD job already created the record
       });
-      // Read back the device FaceUrl so the dashboard can show it landed.
-      const u = await client.getUser(job.akuvoxUserId);
-      return { faceUrl: u?.FaceUrl || "set" };
+      return { faceUrl: "set" };
     }
     case "DELETE": {
-      await client.delUser(job.akuvoxUserId);
+      await client.delUserWeb(job.akuvoxUserId);
       return {};
     }
   }
