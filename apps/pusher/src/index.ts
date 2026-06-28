@@ -12,6 +12,7 @@ import {
   AkuvoxClient,
   claimJobs,
   completeJob,
+  cleanupExpiredDoorSubmissions,
   type ClaimedJob,
 } from "@ytc/core";
 import { loadConfig } from "./config";
@@ -95,10 +96,24 @@ async function doorLoop() {
   }
 }
 
+/** Hourly retention sweep: expire week-old denied door scans. */
+async function cleanupLoop() {
+  while (running) {
+    try {
+      const n = await cleanupExpiredDoorSubmissions(7);
+      if (n) console.log(`[cleanup] expired ${n} old door submission(s)`);
+    } catch (e) {
+      console.error("[cleanup error]", e);
+    }
+    await sleep(60 * 60 * 1000); // hourly
+  }
+}
+
 async function main() {
   console.log(
     `ytc pusher up — ${cfg.dryRun ? "DRY_RUN (no device calls)" : `target ${cfg.akuvox.baseUrl}`}`,
   );
+  cleanupLoop();
 
   // Door snapshots are device READS via the /web session (only need the web
   // password + a reachable baseUrl) — independent of DRY_RUN, which only mocks
