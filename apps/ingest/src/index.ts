@@ -35,6 +35,13 @@ async function pollOnce(cfg: IngestConfig): Promise<number> {
     secure: true,
     auth: { user: cfg.user, pass: cfg.pass },
     logger: false,
+    socketTimeout: 120000,
+  });
+  // ImapFlow throws an UNHANDLED 'error' event (e.g. socket timeout) that would
+  // crash the process — swallow it here; the poll loop just retries next tick.
+  client.on("error", (e: unknown) => {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn("[ingest] imap connection error:", msg);
   });
   await client.connect();
   let processed = 0;

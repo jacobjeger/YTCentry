@@ -143,6 +143,11 @@ export interface Dict {
     filterAll: string;
     filterEmail: string;
     filterDenied: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    addByName: string;
+    needName: string;
+    orMatchRoster: string;
   };
   directory: {
     title: string;
@@ -322,6 +327,11 @@ const en: Dict = {
     filterAll: "All",
     filterEmail: "Email",
     filterDenied: "Denied scans",
+    nameLabel: "Name",
+    namePlaceholder: "Full name",
+    addByName: "Add",
+    needName: "Enter a name.",
+    orMatchRoster: "or match to the roster",
   },
   directory: {
     title: "Directory",
@@ -498,6 +508,11 @@ const he: Dict = {
     filterAll: "הכל",
     filterEmail: "מייל",
     filterDenied: "סריקות שנדחו",
+    nameLabel: "שם",
+    namePlaceholder: "שם מלא",
+    addByName: "הוספה",
+    needName: "יש להזין שם.",
+    orMatchRoster: "או התאמה לרשימה",
   },
   directory: {
     title: "מדריך",

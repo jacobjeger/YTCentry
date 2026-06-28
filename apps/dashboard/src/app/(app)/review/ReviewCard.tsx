@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import {
   approveSubmission,
+  enrollByName,
   rejectSubmission,
   type ReviewState,
 } from "./actions";
@@ -21,16 +22,22 @@ export interface ReviewItem {
 
 export default function ReviewCard({ item }: { item: ReviewItem }) {
   const t = useT();
-  const [state, action, pending] = useActionState<ReviewState, FormData>(
+  const [aState, approveAction, aPending] = useActionState<ReviewState, FormData>(
     approveSubmission,
     {},
   );
-  const [otherId, setOtherId] = useState("");
+  const [nState, nameAction, nPending] = useActionState<ReviewState, FormData>(
+    enrollByName,
+    {},
+  );
+  const ok = aState.ok ?? nState.ok;
+  const error = aState.error ?? nState.error;
+  const pending = aPending || nPending;
 
-  if (state.ok) {
+  if (ok) {
     return (
       <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-green-800">
-        {state.ok}
+        {ok}
       </div>
     );
   }
@@ -45,39 +52,57 @@ export default function ReviewCard({ item }: { item: ReviewItem }) {
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          {item.from === "door-scanner" ? (
-            <span className="text-xs rounded-full bg-amber-100 text-amber-800 px-2 py-0.5">
-              {t.review.sourceDoor}
-            </span>
-          ) : (
-            <span className="text-xs rounded-full bg-stone-100 text-stone-600 px-2 py-0.5">
-              {t.review.sourceEmail}
-            </span>
-          )}
+          <span
+            className={`text-xs rounded-full px-2 py-0.5 ${
+              item.from === "door-scanner"
+                ? "bg-amber-100 text-amber-800"
+                : "bg-stone-100 text-stone-600"
+            }`}
+          >
+            {item.from === "door-scanner" ? t.review.sourceDoor : t.review.sourceEmail}
+          </span>
+          <span className="text-xs text-stone-400 truncate">{item.subject}</span>
         </div>
-        <p className="text-sm text-stone-500">
-          {t.review.from}: <span className="text-stone-700">{item.from}</span>
-        </p>
-        <p className="font-medium truncate">
-          {item.subject || item.parsedName || "—"}
-        </p>
         {item.faceValid === false ? (
-          <p className="text-sm text-amber-700 mt-1">
+          <p className="text-sm text-amber-700 mb-2">
             ⚠ {t.review.noFaceWarn}
             {item.faceNote ? ` (${item.faceNote})` : ""}
           </p>
         ) : null}
 
-        <div className="mt-3">
-          <p className="text-xs uppercase tracking-wide text-stone-400 mb-1">
-            {t.review.candidates}
-          </p>
-          {item.candidates.length === 0 ? (
-            <p className="text-sm text-stone-400">{t.review.noCandidates}</p>
-          ) : (
+        {/* Primary: type a name and add (no roster needed). */}
+        <form action={nameAction} className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="submissionId" value={item.id} />
+          <input
+            name="displayName"
+            defaultValue={item.parsedName ?? ""}
+            required
+            placeholder={t.review.namePlaceholder}
+            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm flex-1 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-bronze"
+          />
+          <input
+            name="studentId"
+            placeholder={t.review.otherIdPlaceholder}
+            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-bronze"
+          />
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded-lg bg-bronze px-4 py-1.5 text-sm font-medium text-white hover:bg-bronze-dark disabled:opacity-50"
+          >
+            {pending ? t.review.approving : t.review.addByName}
+          </button>
+        </form>
+
+        {/* Secondary: roster candidates (emailed photos that matched). */}
+        {item.candidates.length > 0 ? (
+          <div className="mt-3">
+            <p className="text-xs uppercase tracking-wide text-stone-400 mb-1">
+              {t.review.orMatchRoster}
+            </p>
             <div className="flex flex-wrap gap-2">
               {item.candidates.map((c) => (
-                <form key={c.studentId} action={action}>
+                <form key={c.studentId} action={approveAction}>
                   <input type="hidden" name="submissionId" value={item.id} />
                   <input type="hidden" name="studentId" value={c.studentId} />
                   <button
@@ -92,31 +117,10 @@ export default function ReviewCard({ item }: { item: ReviewItem }) {
                 </form>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* Re-assign by a different student ID */}
-        <form action={action} className="mt-3 flex items-center gap-2">
-          <input type="hidden" name="submissionId" value={item.id} />
-          <input
-            name="studentId"
-            value={otherId}
-            onChange={(e) => setOtherId(e.target.value)}
-            placeholder={t.review.otherIdPlaceholder}
-            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-bronze"
-          />
-          <button
-            type="submit"
-            disabled={pending || !otherId.trim()}
-            className="rounded-lg bg-stone-800 text-white px-3 py-1.5 text-sm hover:bg-stone-700 disabled:opacity-50"
-          >
-            {pending ? t.review.approving : t.review.matchById}
-          </button>
-        </form>
-
-        {state.error ? (
-          <p className="text-sm text-red-600 mt-2">{state.error}</p>
+          </div>
         ) : null}
+
+        {error ? <p className="text-sm text-red-600 mt-2">{error}</p> : null}
       </div>
 
       <form action={rejectSubmission} className="shrink-0">

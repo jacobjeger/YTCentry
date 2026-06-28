@@ -81,6 +81,67 @@ export async function approveSubmission(
   }
 }
 
+/** Enroll directly with a typed name (no roster needed) — for denied scans and
+ *  emailed photos with no roster match. */
+export async function enrollByName(
+  _prev: ReviewState,
+  formData: FormData,
+): Promise<ReviewState> {
+  const user = await requireUser();
+  const t = getDictionary(await getLocale());
+
+  const submissionId = String(formData.get("submissionId") ?? "");
+  const displayName = String(formData.get("displayName") ?? "").trim();
+  const studentId = String(formData.get("studentId") ?? "").trim() || null;
+  if (!displayName) return { error: t.review.needName };
+
+  const submission = await prisma.photoSubmission.findUnique({
+    where: { id: submissionId },
+  });
+  if (!submission || !PENDING.includes(submission.status as (typeof PENDING)[number])) {
+    return { error: t.common.error };
+  }
+
+  let bytes: Uint8Array;
+  try {
+    bytes = await getPhotoBytes(submission.imagePath);
+  } catch {
+    return { error: t.common.error };
+  }
+
+  try {
+    const { enrollee } = await enrollPerson({
+      displayName,
+      studentId,
+      source: "MANUAL",
+      image: bytes,
+      actorId: user.id,
+    });
+    await prisma.photoSubmission.update({
+      where: { id: submissionId },
+      data: { status: "APPROVED", reviewedById: user.id, reviewedAt: new Date() },
+    });
+    await audit({
+      actorId: user.id,
+      action: "submission.approve",
+      targetType: "PhotoSubmission",
+      targetId: submissionId,
+      meta: { displayName, akuvoxUserId: enrollee.akuvoxUserId, byName: true },
+    });
+    revalidatePath("/review");
+    return {
+      ok: fmt(t.review.approvedMsg, {
+        name: enrollee.displayName,
+        userId: enrollee.akuvoxUserId,
+      }),
+    };
+  } catch (e) {
+    if (e instanceof EnrollError) return { error: e.message };
+    console.error("enrollByName failed", e);
+    return { error: t.common.error };
+  }
+}
+
 export async function rejectSubmission(formData: FormData) {
   const user = await requireUser();
   const submissionId = String(formData.get("submissionId") ?? "");
