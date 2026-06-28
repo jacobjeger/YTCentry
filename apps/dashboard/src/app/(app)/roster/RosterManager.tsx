@@ -75,11 +75,9 @@ export default function RosterManager() {
       {/* Manual add */}
       <form action={addAction} className="rounded-xl border border-stone-200 bg-white p-5">
         <h2 className="font-semibold mb-3">{t.roster.manualTitle}</h2>
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           <input name="fullName" required placeholder={t.roster.colName} className={input} />
-          <input name="studentId" placeholder={t.roster.mId} className={input} />
-          <input name="shiur" placeholder={t.roster.mShiur} className={input} />
-          <input name="phone" placeholder={t.roster.mPhone} className={input} />
+          <input name="shiur" placeholder={t.roster.year} className={input} />
         </div>
         <div className="mt-3 flex items-center gap-3">
           <button
@@ -133,8 +131,7 @@ export default function RosterManager() {
                   />
                 </th>
                 <th className="p-3 text-start font-medium">{t.roster.colName}</th>
-                <th className="p-3 text-start font-medium">{t.roster.colStudentId}</th>
-                <th className="p-3 text-start font-medium">{t.roster.colShiur}</th>
+                <th className="p-3 text-start font-medium">{t.roster.year}</th>
                 <th className="p-3 text-start font-medium">{t.roster.photo}</th>
                 <th className="p-3 text-start font-medium"></th>
                 <th className="p-3"></th>
@@ -152,7 +149,6 @@ export default function RosterManager() {
                     />
                   </td>
                   <td className="p-3 font-medium">{r.fullName}</td>
-                  <td className="p-3 text-stone-500">{r.studentId.startsWith("M-") ? "—" : r.studentId}</td>
                   <td className="p-3 text-stone-500">{r.shiur ?? ""}</td>
                   <td className="p-3">
                     {r.hasPhoto ? (

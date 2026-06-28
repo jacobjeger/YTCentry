@@ -33,6 +33,7 @@ export default function UnifiedDirectory() {
   const [rows, setRows] = useState<DirRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "az" | "za">("newest");
   const [doors, setDoors] = useState<DoorOption[]>([]);
   const [door, setDoor] = useState<string>("");
@@ -86,12 +87,18 @@ export default function UnifiedDirectory() {
   // Reset to page 1 when the filter/sort/search changes.
   useEffect(() => {
     setPage(0);
-  }, [q, sort, door]);
+  }, [q, sort, door, groupFilter]);
+
+  const groupOptions = Array.from(
+    new Set((rows ?? []).map((r) => (r.group ?? "").trim()).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b));
 
   const filtered = (rows ?? [])
     .filter((r) => {
       const s = q.trim().toLowerCase();
-      return !s || r.name.toLowerCase().includes(s) || r.userID.includes(s);
+      const matchesText = !s || r.name.toLowerCase().includes(s) || r.userID.includes(s);
+      const matchesGroup = !groupFilter || (r.group ?? "").trim() === groupFilter;
+      return matchesText && matchesGroup;
     })
     .sort((a, b) => {
       switch (sort) {
@@ -145,6 +152,20 @@ export default function UnifiedDirectory() {
               placeholder={t.directory.searchDevice}
               className="flex-1 min-w-[200px] max-w-sm rounded-lg border border-stone-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bronze"
             />
+            {groupOptions.length > 0 ? (
+              <select
+                value={groupFilter}
+                onChange={(e) => setGroupFilter(e.target.value)}
+                className="rounded-lg border border-stone-300 px-3 py-2 bg-white text-sm max-w-[160px]"
+              >
+                <option value="">{t.directory.allGroups}</option>
+                {groupOptions.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as typeof sort)}
@@ -177,6 +198,8 @@ export default function UnifiedDirectory() {
                   <tr>
                     <th className="px-4 py-3 text-start font-medium">{t.directory.name}</th>
                     <th className="px-4 py-3 text-start font-medium">{t.directory.doorId}</th>
+                    <th className="px-4 py-3 text-start font-medium">{t.directory.group}</th>
+                    <th className="px-4 py-3 text-start font-medium">{t.directory.pin}</th>
                     <th className="px-4 py-3 text-start font-medium">{t.directory.face}</th>
                     <th className="px-4 py-3 text-start font-medium">{t.directory.status}</th>
                     <th className="px-4 py-3" />
@@ -266,6 +289,8 @@ function Row({
         </div>
       </td>
       <td className="px-4 py-2.5 font-mono text-stone-500">{r.userID}</td>
+      <td className="px-4 py-2.5 text-stone-600">{r.group ?? ""}</td>
+      <td className="px-4 py-2.5 font-mono text-stone-500">{r.pin || ""}</td>
       <td className="px-4 py-2.5">
         {r.hasFaceOnDevice ? (
           <span className="text-green-700">{t.directory.yes}</span>

@@ -45,6 +45,8 @@ export interface DirRow {
   status?: string; // our Enrollee status when managed
   studentId?: string | null;
   shiur?: string | null;
+  pin?: string | null;
+  group?: string | null;
 }
 
 /** One unified view: EVERYONE on the door (live), merged with our records. */
@@ -94,6 +96,8 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
           status: e?.status,
           studentId: e?.studentId ?? null,
           shiur: e?.shiur ?? null,
+          pin: u.pin,
+          group: u.group,
         };
       })
       .sort((a, b) => Number(a.userID) - Number(b.userID));

@@ -112,7 +112,7 @@ export async function removeCacheRow(deviceId: string, userID: string): Promise<
 }
 
 export interface CachedDirectory {
-  rows: { userID: string; name: string; hasFace: boolean }[];
+  rows: { userID: string; name: string; hasFace: boolean; pin: string | null; group: string | null }[];
   syncedAt: Date | null;
 }
 
@@ -120,13 +120,18 @@ export interface CachedDirectory {
 export async function getCachedDirectory(deviceId: string): Promise<CachedDirectory> {
   const rows = await prisma.deviceUserCache.findMany({
     where: { deviceId },
-    select: { userID: true, name: true, hasFace: true, syncedAt: true },
+    select: { userID: true, name: true, hasFace: true, pin: true, groupName: true, syncedAt: true },
   });
   const syncedAt = rows.reduce<Date | null>(
     (m, r) => (!m || r.syncedAt > m ? r.syncedAt : m),
     null,
   );
-  return { rows: rows.map(({ userID, name, hasFace }) => ({ userID, name, hasFace })), syncedAt };
+  return {
+    rows: rows.map(({ userID, name, hasFace, pin, groupName }) => ({
+      userID, name, hasFace, pin, group: groupName,
+    })),
+    syncedAt,
+  };
 }
 
 export type { Device };

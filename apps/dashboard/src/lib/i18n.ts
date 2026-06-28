@@ -146,6 +146,7 @@ export interface Dict {
     empty: string;
     needName: string;
     manualTitle: string;
+    year: string;
     mId: string;
     mIdHint: string;
     mShiur: string;
@@ -235,6 +236,9 @@ export interface Dict {
     save: string;
     saving: string;
     editTitle: string;
+    pin: string;
+    group: string;
+    allGroups: string;
   };
   settings: {
     title: string;
@@ -395,6 +399,7 @@ const en: Dict = {
     empty: "That file has no data rows.",
     needName: "Name is required.",
     manualTitle: "Add someone manually",
+    year: "Year",
     mId: "Student ID (optional)",
     mIdHint: "Leave blank and we'll generate one.",
     mShiur: "Shiur",
@@ -487,6 +492,9 @@ const en: Dict = {
     save: "Save",
     saving: "Saving…",
     editTitle: "Edit person",
+    pin: "PIN",
+    group: "Group",
+    allGroups: "All groups",
   },
   settings: {
     title: "Settings",
@@ -643,6 +651,7 @@ const he: Dict = {
     empty: "אין שורות נתונים בקובץ.",
     needName: "יש להזין שם.",
     manualTitle: "הוספת אדם ידנית",
+    year: "שנה",
     mId: "מספר תלמיד (רשות)",
     mIdHint: "השאירו ריק וניצור מספר אוטומטית.",
     mShiur: "שיעור",
@@ -733,6 +742,9 @@ const he: Dict = {
     save: "שמירה",
     saving: "שומר…",
     editTitle: "עריכת אדם",
+    pin: "קוד",
+    group: "קבוצה",
+    allGroups: "כל הקבוצות",
   },
   settings: {
     title: "הגדרות",
