@@ -29,6 +29,7 @@ export interface Dict {
     staff: string;
     settings: string;
     tempPins: string;
+    schedules: string;
     signOut: string;
     language: string;
   };
@@ -88,6 +89,29 @@ export interface Dict {
     wrongCurrent: string;
     mismatch: string;
     tooShort: string;
+  };
+  schedules: {
+    title: string;
+    subtitle: string;
+    listTitle: string;
+    none: string;
+    createTitle: string;
+    name: string;
+    namePlaceholder: string;
+    days: string;
+    timeFrom: string;
+    timeTo: string;
+    until: string;
+    create: string;
+    creating: string;
+    created: string; // "{name}"
+    remove: string;
+    confirmRemove: string;
+    needName: string;
+    needDays: string;
+    needTime: string;
+    noDoor: string;
+    builtin: string;
   };
   login: {
     title: string;
@@ -362,6 +386,7 @@ const en: Dict = {
     staff: "Staff",
     settings: "Settings",
     tempPins: "Temp PINs",
+    schedules: "Schedules",
     signOut: "Sign out",
     language: "Language",
   },
@@ -421,6 +446,29 @@ const en: Dict = {
     wrongCurrent: "Current password is incorrect.",
     mismatch: "The new passwords don't match.",
     tooShort: "Use at least 8 characters.",
+  },
+  schedules: {
+    title: "Access schedules",
+    subtitle: "Time windows that control when a group can enter the door.",
+    listTitle: "Schedules",
+    none: "No schedules yet.",
+    createTitle: "New schedule",
+    name: "Name",
+    namePlaceholder: "e.g. Cleaning crew",
+    days: "Days",
+    timeFrom: "From",
+    timeTo: "To",
+    until: "Until (optional)",
+    create: "Create schedule",
+    creating: "Creating…",
+    created: "Created {name}.",
+    remove: "Remove",
+    confirmRemove: "Remove this schedule?",
+    needName: "Enter a name.",
+    needDays: "Pick at least one day.",
+    needTime: "Enter a valid time window.",
+    noDoor: "No door configured.",
+    builtin: "Built-in",
   },
   login: {
     title: "YTC Entry",
@@ -704,6 +752,7 @@ const he: Dict = {
     staff: "צוות",
     settings: "הגדרות",
     tempPins: "קודים זמניים",
+    schedules: "לוחות זמנים",
     signOut: "התנתקות",
     language: "שפה",
   },
@@ -763,6 +812,29 @@ const he: Dict = {
     wrongCurrent: "הסיסמה הנוכחית שגויה.",
     mismatch: "הסיסמאות החדשות אינן תואמות.",
     tooShort: "השתמשו בלפחות 8 תווים.",
+  },
+  schedules: {
+    title: "לוחות זמני גישה",
+    subtitle: "חלונות זמן הקובעים מתי קבוצה יכולה להיכנס בדלת.",
+    listTitle: "לוחות זמנים",
+    none: "אין עדיין לוחות זמנים.",
+    createTitle: "לוח זמנים חדש",
+    name: "שם",
+    namePlaceholder: "לדוגמה: צוות ניקיון",
+    days: "ימים",
+    timeFrom: "משעה",
+    timeTo: "עד שעה",
+    until: "עד תאריך (רשות)",
+    create: "יצירת לוח זמנים",
+    creating: "יוצר…",
+    created: "{name} נוצר.",
+    remove: "הסרה",
+    confirmRemove: "להסיר את לוח הזמנים?",
+    needName: "הזינו שם.",
+    needDays: "בחרו לפחות יום אחד.",
+    needTime: "הזינו חלון זמן תקין.",
+    noDoor: "לא הוגדרה דלת.",
+    builtin: "מובנה",
   },
   login: {
     title: "YTC Entry",

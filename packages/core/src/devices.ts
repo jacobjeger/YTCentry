@@ -44,6 +44,12 @@ export async function syncDeviceDirectory(device: Device): Promise<number> {
   } catch {
     /* keep prior cached groups on a transient failure */
   }
+  let schedules: { id: number; scheduleID: number; name: string }[] = [];
+  try {
+    schedules = await client.getSchedulesViaWeb();
+  } catch {
+    /* keep prior cached schedules on a transient failure */
+  }
   await prisma.$transaction([
     prisma.deviceUserCache.deleteMany({ where: { deviceId: device.id } }),
     prisma.deviceUserCache.createMany({
@@ -61,8 +67,33 @@ export async function syncDeviceDirectory(device: Device): Promise<number> {
     ...(groups.length
       ? [prisma.device.update({ where: { id: device.id }, data: { groupsJson: groups } })]
       : []),
+    ...(schedules.length
+      ? [prisma.device.update({ where: { id: device.id }, data: { schedulesJson: schedules } })]
+      : []),
   ]);
   return users.length;
+}
+
+export interface CachedSchedule {
+  id: number;
+  scheduleID: number;
+  name: string;
+}
+
+/** Cached schedules for a door (no device hit). */
+export async function getCachedSchedules(deviceId: string): Promise<CachedSchedule[]> {
+  const d = await prisma.device.findUnique({
+    where: { id: deviceId },
+    select: { schedulesJson: true },
+  });
+  return Array.isArray(d?.schedulesJson) ? (d!.schedulesJson as unknown as CachedSchedule[]) : [];
+}
+
+/** Refresh only the cached schedules for a door (used after create/delete). */
+export async function refreshDeviceSchedules(device: Device): Promise<CachedSchedule[]> {
+  const schedules = await clientForDevice(device).getSchedulesViaWeb();
+  await prisma.device.update({ where: { id: device.id }, data: { schedulesJson: schedules } });
+  return schedules;
 }
 
 /** Cached group names for a door (no device hit). */

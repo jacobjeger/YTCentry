@@ -20,6 +20,8 @@ export type AuditAction =
   | "staff.create"
   | "staff.disable"
   | "staff.password"
+  | "schedule.create"
+  | "schedule.delete"
   | "auth.login";
 
 export async function audit(opts: {
