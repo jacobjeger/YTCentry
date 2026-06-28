@@ -1,10 +1,11 @@
 /**
  * Gmail ingestion worker. Long-running Railway service. Never touches the LAN.
  *
- * Loop (~60s): connect IMAP → fetch UNSEEN messages → for each, extract the
- * first image, run processMessage() (dedupe + validate + match + write a
- * PhotoSubmission) → mark the message \Seen. Idempotency comes from the
- * Message-ID unique constraint plus the \Seen flag, so a re-poll is harmless.
+ * Design: ONE persistent IMAP connection held open with IDLE, rather than a
+ * connect/disconnect every poll — Gmail throttles frequent reconnects (it
+ * accepts the login, then stalls the next command). We connect once, process the
+ * backlog, then react to the 'exists' event (new mail) push. On any drop we
+ * reconnect with a backoff. Idempotency: Message-ID unique + the \Seen flag.
  */
 import { ImapFlow } from "imapflow";
 import { simpleParser, type ParsedMail } from "mailparser";
@@ -28,94 +29,106 @@ function firstImage(
   return null;
 }
 
-async function pollOnce(cfg: IngestConfig): Promise<number> {
-  const client = new ImapFlow({
-    host: cfg.host,
-    port: cfg.port,
-    secure: true,
-    auth: { user: cfg.user, pass: cfg.pass },
-    logger: false,
-    socketTimeout: 120000,
-  });
-  // ImapFlow throws an UNHANDLED 'error' event (e.g. socket timeout) that would
-  // crash the process — swallow it here; the poll loop just retries next tick.
-  client.on("error", (e: unknown) => {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[ingest] imap connection error:", msg);
-  });
-  await client.connect();
-  let processed = 0;
-  const lock = await client.getMailboxLock("INBOX");
+/** Process all currently-unseen messages on an already-open mailbox. */
+let processing = false;
+async function processNew(client: ImapFlow, user: string): Promise<void> {
+  if (processing) return; // avoid overlapping runs from rapid 'exists' events
+  processing = true;
   try {
     const uids = await client.search({ seen: false }, { uid: true });
-    if (uids && uids.length) {
-      for await (const message of client.fetch(
-        uids,
-        { source: true, envelope: true, uid: true },
-        { uid: true },
-      )) {
-        try {
-          if (!message.source) {
-            await client.messageFlagsAdd(message.uid, ["\\Seen"], { uid: true });
-            continue;
-          }
-          const parsed = (await simpleParser(message.source)) as ParsedMail;
-          const img = firstImage(
-            (parsed.attachments ?? []) as {
-              contentType: string;
-              content: Buffer;
-              size?: number;
-            }[],
-          );
-          const msg: IncomingMessage = {
-            messageId:
-              parsed.messageId ?? `uid-${message.uid}-${cfg.user}`,
-            from: parsed.from?.value?.[0]?.address ?? "unknown",
-            subject: parsed.subject ?? "",
-            image: img?.bytes ?? null,
-            imageMime: img?.mime,
-          };
-          const res = await processMessage(msg);
-          if (res.status === "created") {
-            processed++;
-            console.log(
-              `[ingest] ${msg.from} "${msg.subject}" → ${res.decision}`,
-            );
-          }
-        } catch (e) {
-          console.warn(`[ingest] message ${message.uid} failed:`, e);
+    if (!uids || uids.length === 0) return;
+    for (const uid of uids) {
+      try {
+        const msg = await client.fetchOne(uid, { source: true }, { uid: true });
+        if (!msg || !msg.source) {
+          await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true });
+          continue;
         }
-        // Mark seen regardless so we don't re-fetch the same mail forever.
-        await client.messageFlagsAdd(message.uid, ["\\Seen"], { uid: true });
+        const parsed = (await simpleParser(msg.source)) as ParsedMail;
+        const img = firstImage(
+          (parsed.attachments ?? []) as {
+            contentType: string;
+            content: Buffer;
+            size?: number;
+          }[],
+        );
+        const incoming: IncomingMessage = {
+          messageId: parsed.messageId ?? `uid-${uid}-${user}`,
+          from: parsed.from?.value?.[0]?.address ?? "unknown",
+          subject: parsed.subject ?? "",
+          image: img?.bytes ?? null,
+          imageMime: img?.mime,
+        };
+        const res = await processMessage(incoming);
+        if (res.status === "created") {
+          console.log(`[ingest] ${incoming.from} "${incoming.subject}" → ${res.decision}`);
+        }
+      } catch (e) {
+        console.warn(`[ingest] message uid ${uid} failed:`, e);
       }
+      await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true });
     }
   } finally {
-    lock.release();
-    await client.logout().catch(() => {});
+    processing = false;
   }
-  return processed;
 }
 
-async function main(cfg: IngestConfig) {
-  console.log(`ytc ingest up — mailbox ${cfg.user}`);
+async function watch(cfg: IngestConfig): Promise<void> {
   while (running) {
+    const client = new ImapFlow({
+      host: cfg.host,
+      port: cfg.port,
+      secure: true,
+      auth: { user: cfg.user, pass: cfg.pass },
+      logger: false,
+      // Long socket timeout: an IDLE connection is quiet for minutes.
+      socketTimeout: 5 * 60 * 1000,
+    });
+    // Required, or an unhandled 'error' event crashes the process.
+    client.on("error", (e: unknown) => {
+      console.warn("[ingest] imap error:", e instanceof Error ? e.message : e);
+    });
+
     try {
-      const n = await pollOnce(cfg);
-      if (n) console.log(`[ingest] processed ${n} new submission(s)`);
+      await client.connect();
+      await client.mailboxOpen("INBOX");
+      console.log(`[ingest] connected, watching ${cfg.user}`);
+
+      await processNew(client, cfg.user); // backlog on (re)connect
+
+      // React to new mail (imapflow auto-IDLEs and emits 'exists').
+      client.on("exists", () => {
+        processNew(client, cfg.user).catch((e) =>
+          console.warn("[ingest] processNew error:", e),
+        );
+      });
+
+      // Also poll on an interval as a belt-and-suspenders against missed pushes.
+      while (running && client.usable) {
+        await sleep(cfg.pollMs);
+        if (running && client.usable) await processNew(client, cfg.user);
+      }
     } catch (e) {
-      console.error("[ingest] poll error:", e);
+      console.warn(
+        "[ingest] connection lost:",
+        e instanceof Error ? e.message : e,
+      );
+    } finally {
+      try {
+        await client.logout();
+      } catch {
+        /* ignore */
+      }
     }
-    await sleep(cfg.pollMs);
+    if (running) await sleep(20000); // gentle backoff before reconnecting
   }
-  console.log("ytc ingest shutting down");
 }
 
 const cfg = loadConfig();
 if (!cfg) {
-  // No Gmail creds yet — stay alive and idle so the deploy stays healthy. Set
-  // GMAIL_USER + GMAIL_APP_PASSWORD to start polling (see .env.example).
   console.log("ytc ingest: GMAIL_USER/GMAIL_APP_PASSWORD not set — idling.");
   setInterval(() => {}, 1 << 30);
 } else {
-  main(cfg);
+  console.log(`ytc ingest up — mailbox ${cfg.user}`);
+  watch(cfg);
 }

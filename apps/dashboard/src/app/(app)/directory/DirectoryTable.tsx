@@ -68,7 +68,17 @@ function Row({ it }: { it: DirItem }) {
 
   return (
     <tr className={it.status === "REMOVED" ? "opacity-50" : ""}>
-      <td className="px-4 py-3 font-medium">{it.displayName}</td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/enrollee/${it.id}/photo`}
+            alt=""
+            className="w-9 h-9 rounded-full object-cover bg-stone-200 shrink-0"
+          />
+          <span className="font-medium">{it.displayName}</span>
+        </div>
+      </td>
       <td className="px-4 py-3 text-stone-600">{it.studentId ?? "—"}</td>
       <td className="px-4 py-3 text-stone-600">{it.shiur ?? "—"}</td>
       <td className="px-4 py-3 font-mono text-stone-500">{it.akuvoxUserId}</td>

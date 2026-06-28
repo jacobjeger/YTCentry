@@ -56,6 +56,20 @@ export interface DoorLogRecord {
   picture: string;
 }
 
+/** A user as returned by the /web directory (fields per the device web UI). */
+export interface DeviceUser {
+  id: number;
+  userID: string;
+  name: string;
+  faceID: number; // > 0 = a face is enrolled
+  sources: number; // 0 = Local
+  Schedule?: string;
+  card?: string;
+  Phone?: string;
+  Group?: string;
+  [key: string]: unknown;
+}
+
 export interface AkuvoxConfig {
   baseUrl: string;        // LAN "http://10.0.0.215" OR the gated tunnel "https://door.<domain>"
   apiUser: string;        // "admin"
@@ -334,22 +348,53 @@ export class AkuvoxClient {
     }
   }
 
-  /** Read the user directory via /web (for verifying a push without the API pass). */
-  async getUsersViaWeb(): Promise<Record<string, unknown>[]> {
-    const get = async (session: string) => {
-      const q = new URLSearchParams({ session, web: "1" });
-      const res = await fetch(`${this.cfg.baseUrl}/web/user/get?${q}`, {
-        headers: this.cfHeaders(),
-      });
-      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web/user/get.`);
-      return res.json();
-    };
-    let body = await get(await this.ensureSession());
+  private async webUserPage(page: number, session: string): Promise<any> {
+    const q = new URLSearchParams({
+      page: String(page), search: "", type: "0", facestatus: "0", session, web: "1",
+    });
+    const res = await fetch(`${this.cfg.baseUrl}/web/user/get?${q}`, {
+      headers: this.cfHeaders(),
+    });
+    if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web/user/get.`);
+    return res.json();
+  }
+
+  /** One page of the device directory via /web (15 users/page). */
+  async getUsersViaWeb(page = 1): Promise<DeviceUser[]> {
+    let body = await this.webUserPage(page, await this.ensureSession());
     if (body?.retcode === -100) {
       this.webSession = null;
-      body = await get(await this.webLogin());
+      body = await this.webUserPage(page, await this.webLogin());
     }
-    return (body?.data?.item ?? body?.data?.userList ?? body?.data ?? []) as Record<string, unknown>[];
+    return (body?.data?.userList ?? []) as DeviceUser[];
+  }
+
+  /**
+   * The FULL device directory — every user on the door (legacy + automation).
+   * Pages through /web/user/get (15/page) with limited concurrency. Read-only;
+   * the band guard still governs what we ever write.
+   */
+  async getAllUsersViaWeb(): Promise<DeviceUser[]> {
+    let first = await this.webUserPage(1, await this.ensureSession());
+    if (first?.retcode === -100) {
+      this.webSession = null;
+      first = await this.webUserPage(1, await this.webLogin());
+    }
+    const session = this.webSession!;
+    const pageNum: number = first?.data?.pageNum ?? 1;
+    const all: DeviceUser[] = [...(first?.data?.userList ?? [])];
+
+    const rest: number[] = [];
+    for (let p = 2; p <= pageNum; p++) rest.push(p);
+    const CONC = 4;
+    for (let i = 0; i < rest.length; i += CONC) {
+      const batch = rest.slice(i, i + CONC);
+      const results = await Promise.all(
+        batch.map((p) => this.webUserPage(p, session)),
+      );
+      for (const r of results) all.push(...((r?.data?.userList ?? []) as DeviceUser[]));
+    }
+    return all;
   }
 
   /** URL of a captured door snapshot (the image itself needs no auth on-device). */

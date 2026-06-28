@@ -169,6 +169,18 @@ export interface Dict {
     statusPushed: string;
     statusFailed: string;
     statusRemoved: string;
+    viewDevice: string;
+    deviceTitle: string;
+    deviceSubtitle: string;
+    loadingDevice: string;
+    searchDevice: string;
+    face: string;
+    yes: string;
+    no: string;
+    managedHere: string;
+    legacy: string;
+    totalOnDoor: string; // "{n}"
+    back: string;
   };
   settings: {
     title: string;
@@ -354,6 +366,18 @@ const en: Dict = {
     statusPushed: "On door",
     statusFailed: "Failed",
     statusRemoved: "Removed",
+    viewDevice: "All on the door →",
+    deviceTitle: "Everyone on the door",
+    deviceSubtitle: "The full device directory, live — legacy + this system's records.",
+    loadingDevice: "Loading the door directory…",
+    searchDevice: "Search name or user ID…",
+    face: "Face",
+    yes: "Yes",
+    no: "No",
+    managedHere: "Managed here",
+    legacy: "Legacy",
+    totalOnDoor: "{n} people on the door",
+    back: "← Back to directory",
   },
   settings: {
     title: "Settings",
@@ -534,6 +558,18 @@ const he: Dict = {
     statusPushed: "בדלת",
     statusFailed: "נכשל",
     statusRemoved: "הוסר",
+    viewDevice: "כל מי שבדלת ←",
+    deviceTitle: "כל מי שבדלת",
+    deviceSubtitle: "ספריית המכשיר המלאה, בזמן אמת — רשומות ישנות + רשומות המערכת.",
+    loadingDevice: "טוען את ספריית הדלת…",
+    searchDevice: "חיפוש לפי שם או מזהה…",
+    face: "פנים",
+    yes: "כן",
+    no: "לא",
+    managedHere: "מנוהל כאן",
+    legacy: "ישן",
+    totalOnDoor: "{n} אנשים בדלת",
+    back: "← חזרה למדריך",
   },
   settings: {
     title: "הגדרות",

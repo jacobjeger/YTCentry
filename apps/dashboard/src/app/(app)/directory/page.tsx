@@ -46,7 +46,15 @@ export default async function DirectoryPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">{t.directory.title}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">{t.directory.title}</h1>
+        <a
+          href="/directory/device"
+          className="text-sm text-bronze-dark hover:underline"
+        >
+          {t.directory.viewDevice}
+        </a>
+      </div>
       <p className="text-stone-500 mt-1 mb-6">{t.directory.subtitle}</p>
 
       <form method="get" className="mb-5">
