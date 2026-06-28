@@ -8,11 +8,14 @@ import {
   type DoorRow,
   type DoorActionState,
 } from "./doors-actions";
+import { useT } from "@/components/LocaleProvider";
+import { fmt } from "@/lib/i18n";
 
 const input =
   "rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bronze";
 
 export default function DoorsManager({ doors }: { doors: DoorRow[] }) {
+  const t = useT();
   const [state, action, pending] = useActionState<DoorActionState, FormData>(
     addDoor,
     {},
@@ -28,11 +31,11 @@ export default function DoorsManager({ doors }: { doors: DoorRow[] }) {
         <table className="w-full text-sm">
           <thead className="bg-stone-50 text-stone-500 text-start">
             <tr>
-              <th className="px-4 py-3 text-start font-medium">Door</th>
-              <th className="px-4 py-3 text-start font-medium">URL</th>
-              <th className="px-4 py-3 text-start font-medium">Email</th>
-              <th className="px-4 py-3 text-start font-medium">Snapshots</th>
-              <th className="px-4 py-3 text-start font-medium">Status</th>
+              <th className="px-4 py-3 text-start font-medium">{t.doors.colDoor}</th>
+              <th className="px-4 py-3 text-start font-medium">{t.doors.colUrl}</th>
+              <th className="px-4 py-3 text-start font-medium">{t.doors.colEmail}</th>
+              <th className="px-4 py-3 text-start font-medium">{t.doors.colSnapshots}</th>
+              <th className="px-4 py-3 text-start font-medium">{t.doors.colStatus}</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -43,13 +46,13 @@ export default function DoorsManager({ doors }: { doors: DoorRow[] }) {
                 <td className="px-4 py-3 text-stone-500 font-mono text-xs truncate max-w-[220px]">
                   {d.baseUrl}
                 </td>
-                <td className="px-4 py-3">{d.allowEmail ? "Yes" : "—"}</td>
-                <td className="px-4 py-3">{d.pollSnapshots ? "Yes" : "—"}</td>
+                <td className="px-4 py-3">{d.allowEmail ? t.doors.yes : "—"}</td>
+                <td className="px-4 py-3">{d.pollSnapshots ? t.doors.yes : "—"}</td>
                 <td className="px-4 py-3">
                   {d.active ? (
-                    <span className="text-green-700">Active</span>
+                    <span className="text-green-700">{t.doors.active}</span>
                   ) : (
-                    <span className="text-stone-400">Off</span>
+                    <span className="text-stone-400">{t.doors.off}</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-end">
@@ -58,18 +61,18 @@ export default function DoorsManager({ doors }: { doors: DoorRow[] }) {
                       <input type="hidden" name="id" value={d.id} />
                       <input type="hidden" name="active" value={(!d.active).toString()} />
                       <button className="text-xs text-bronze-dark hover:underline">
-                        {d.active ? "Disable" : "Enable"}
+                        {d.active ? t.doors.disable : t.doors.enable}
                       </button>
                     </form>
                     <form
                       action={deleteDoor}
                       onSubmit={(e) => {
-                        if (!confirm(`Remove the door "${d.name}"? (Doesn't delete anyone from the device.)`))
+                        if (!confirm(fmt(t.doors.confirmRemove, { name: d.name })))
                           e.preventDefault();
                       }}
                     >
                       <input type="hidden" name="id" value={d.id} />
-                      <button className="text-xs text-red-600 hover:underline">Remove</button>
+                      <button className="text-xs text-red-600 hover:underline">{t.doors.remove}</button>
                     </form>
                   </div>
                 </td>
@@ -78,7 +81,7 @@ export default function DoorsManager({ doors }: { doors: DoorRow[] }) {
             {doors.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-stone-400">
-                  No doors yet — add one below.
+                  {t.doors.empty}
                 </td>
               </tr>
             ) : null}
@@ -91,30 +94,30 @@ export default function DoorsManager({ doors }: { doors: DoorRow[] }) {
         action={action}
         className="rounded-xl border border-stone-200 bg-white p-6 max-w-lg flex flex-col gap-3"
       >
-        <h3 className="font-semibold">Add a door</h3>
+        <h3 className="font-semibold">{t.doors.addTitle}</h3>
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-stone-700">Name</span>
-          <input name="name" required placeholder="Kitchen Back Door" className={input} />
+          <span className="text-sm font-medium text-stone-700">{t.doors.name}</span>
+          <input name="name" required placeholder={t.doors.namePlaceholder} className={input} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-stone-700">Tunnel URL</span>
+          <span className="text-sm font-medium text-stone-700">{t.doors.urlLabel}</span>
           <input
             name="baseUrl"
             required
-            placeholder="https://kitchen-back.example.org"
+            placeholder={t.doors.urlPlaceholder}
             className={input}
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-stone-700">Web password</span>
+          <span className="text-sm font-medium text-stone-700">{t.doors.webPassword}</span>
           <input name="webPassword" type="text" required className={input} />
         </label>
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="allowEmail" className="accent-bronze" /> Receives emailed photos
+            <input type="checkbox" name="allowEmail" className="accent-bronze" /> {t.doors.receivesEmail}
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="pollSnapshots" className="accent-bronze" /> Pull denied scans
+            <input type="checkbox" name="pollSnapshots" className="accent-bronze" /> {t.doors.pullDenied}
           </label>
         </div>
         {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
@@ -124,7 +127,7 @@ export default function DoorsManager({ doors }: { doors: DoorRow[] }) {
           disabled={pending}
           className="mt-1 rounded-lg bg-bronze px-4 py-2.5 font-medium text-white hover:bg-bronze-dark disabled:opacity-60 w-fit"
         >
-          {pending ? "Testing connection…" : "Add door"}
+          {pending ? t.doors.testing : t.doors.addDoor}
         </button>
       </form>
     </div>

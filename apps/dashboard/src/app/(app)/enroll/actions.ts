@@ -32,7 +32,7 @@ export async function listGroups(): Promise<string[]> {
 }
 
 const schema = z.object({
-  displayName: z.string().min(1, "Name is required."),
+  displayName: z.string().min(1),
 });
 
 export type EnrollState = {
@@ -51,7 +51,7 @@ export async function enrollAction(
     displayName: formData.get("displayName"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? t.login.invalid };
+    return { error: t.enroll.nameRequired };
   }
   const groupName = String(formData.get("groupName") ?? "").trim() || null;
   const pin = String(formData.get("pin") ?? "").trim() || null;

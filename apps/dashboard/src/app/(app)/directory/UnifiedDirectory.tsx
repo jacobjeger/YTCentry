@@ -13,20 +13,23 @@ import {
   type DoorOption,
 } from "./actions";
 import EditPersonModal from "./EditPersonModal";
-
-const PAGE_SIZE = 50;
-
-function timeAgo(iso: string | null): string {
-  if (!iso) return "";
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  return hrs < 24 ? `${hrs}h ago` : `${Math.round(hrs / 24)}d ago`;
-}
 import { useActionState, useRef } from "react";
 import { useT } from "@/components/LocaleProvider";
 import { fmt } from "@/lib/i18n";
+import type { Dict } from "@/lib/i18n";
+
+const PAGE_SIZE = 50;
+
+function timeAgo(iso: string | null, t: Dict): string {
+  if (!iso) return "";
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return t.directory.justNow;
+  if (mins < 60) return fmt(t.directory.minsAgo, { n: mins });
+  const hrs = Math.round(mins / 60);
+  return hrs < 24
+    ? fmt(t.directory.hrsAgo, { n: hrs })
+    : fmt(t.directory.daysAgo, { n: Math.round(hrs / 24) });
+}
 
 export default function UnifiedDirectory() {
   const t = useT();
@@ -187,7 +190,7 @@ export default function UnifiedDirectory() {
               {refreshing ? t.directory.syncing : t.directory.refresh}
             </button>
             {syncedAt ? (
-              <span className="text-xs text-stone-400">{timeAgo(syncedAt)}</span>
+              <span className="text-xs text-stone-400">{timeAgo(syncedAt, t)}</span>
             ) : null}
           </div>
 

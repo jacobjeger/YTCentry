@@ -257,7 +257,7 @@ export default function EnrollForm() {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={preview}
-                alt="preview"
+                alt={t.enroll.previewAlt}
                 className="max-h-[280px] rounded-md object-contain"
               />
             ) : (

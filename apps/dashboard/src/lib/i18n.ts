@@ -127,6 +127,8 @@ export interface Dict {
     groupLabel: string;
     groupNone: string;
     pinLabel: string;
+    nameRequired: string;
+    previewAlt: string;
   };
   staff: {
     title: string;
@@ -192,6 +194,8 @@ export interface Dict {
     listEmpty: string;
     remove: string;
     search: string;
+    noneSelected: string;
+    noPhotos: string;
   };
   review: {
     title: string;
@@ -220,6 +224,7 @@ export interface Dict {
     addByName: string;
     needName: string;
     orMatchRoster: string;
+    submissionAlt: string;
   };
   directory: {
     title: string;
@@ -267,6 +272,13 @@ export interface Dict {
     pin: string;
     group: string;
     allGroups: string;
+    noDoor: string;
+    noDoorShort: string;
+    missingUser: string;
+    justNow: string;
+    minsAgo: string; // "{n}"
+    hrsAgo: string; // "{n}"
+    daysAgo: string; // "{n}"
   };
   settings: {
     title: string;
@@ -284,6 +296,34 @@ export interface Dict {
     target: string;
     when: string;
     system: string;
+  };
+  doors: {
+    colDoor: string;
+    colUrl: string;
+    colEmail: string;
+    colSnapshots: string;
+    colStatus: string;
+    yes: string;
+    active: string;
+    off: string;
+    disable: string;
+    enable: string;
+    remove: string;
+    confirmRemove: string; // "{name}"
+    empty: string;
+    addTitle: string;
+    name: string;
+    namePlaceholder: string;
+    urlLabel: string;
+    urlPlaceholder: string;
+    webPassword: string;
+    receivesEmail: string;
+    pullDenied: string;
+    testing: string;
+    addDoor: string;
+    invalid: string;
+    loginFailed: string;
+    added: string; // "{name}"
   };
   common: {
     comingSoon: string;
@@ -406,6 +446,8 @@ const en: Dict = {
     groupLabel: "Group",
     groupNone: "No group",
     pinLabel: "PIN (optional)",
+    nameRequired: "Name is required.",
+    previewAlt: "Photo preview",
   },
   staff: {
     title: "Staff logins",
@@ -473,6 +515,8 @@ const en: Dict = {
     listEmpty: "No one on the roster yet. Upload a list or add someone above.",
     remove: "Remove",
     search: "Search name or ID…",
+    noneSelected: "No people selected.",
+    noPhotos: "None of the selected people have a photo.",
   },
   review: {
     title: "Review queue",
@@ -502,6 +546,7 @@ const en: Dict = {
     addByName: "Add",
     needName: "Enter a name.",
     orMatchRoster: "or match to the roster",
+    submissionAlt: "Submitted photo",
   },
   directory: {
     title: "Directory",
@@ -551,6 +596,13 @@ const en: Dict = {
     pin: "PIN",
     group: "Group",
     allGroups: "All groups",
+    noDoor: "No door configured. Add one in Settings.",
+    noDoorShort: "No door configured.",
+    missingUser: "Missing user.",
+    justNow: "just now",
+    minsAgo: "{n}m ago",
+    hrsAgo: "{n}h ago",
+    daysAgo: "{n}d ago",
   },
   settings: {
     title: "Settings",
@@ -568,6 +620,34 @@ const en: Dict = {
     target: "Target",
     when: "When",
     system: "system",
+  },
+  doors: {
+    colDoor: "Door",
+    colUrl: "URL",
+    colEmail: "Email",
+    colSnapshots: "Snapshots",
+    colStatus: "Status",
+    yes: "Yes",
+    active: "Active",
+    off: "Off",
+    disable: "Disable",
+    enable: "Enable",
+    remove: "Remove",
+    confirmRemove: "Remove the door \"{name}\"? (Doesn't delete anyone from the device.)",
+    empty: "No doors yet — add one below.",
+    addTitle: "Add a door",
+    name: "Name",
+    namePlaceholder: "Kitchen Back Door",
+    urlLabel: "Tunnel URL",
+    urlPlaceholder: "https://kitchen-back.example.org",
+    webPassword: "Web password",
+    receivesEmail: "Receives emailed photos",
+    pullDenied: "Pull denied scans",
+    testing: "Testing connection…",
+    addDoor: "Add door",
+    invalid: "Enter a name, a valid https URL, and the web password.",
+    loginFailed: "Couldn't log into that door — check the URL and password.",
+    added: "Added {name}.",
   },
   common: {
     comingSoon: "Coming soon.",
@@ -687,6 +767,8 @@ const he: Dict = {
     groupLabel: "קבוצה",
     groupNone: "ללא קבוצה",
     pinLabel: "קוד PIN (רשות)",
+    nameRequired: "יש להזין שם.",
+    previewAlt: "תצוגת תמונה",
   },
   staff: {
     title: "חשבונות צוות",
@@ -753,6 +835,8 @@ const he: Dict = {
     listEmpty: "אין עדיין תלמידים ברשימה. העלו רשימה או הוסיפו אדם למעלה.",
     remove: "הסרה",
     search: "חיפוש שם או מספר…",
+    noneSelected: "לא נבחרו אנשים.",
+    noPhotos: "לאף אחד מהאנשים שנבחרו אין תמונה.",
   },
   review: {
     title: "תור לאישור",
@@ -781,6 +865,7 @@ const he: Dict = {
     addByName: "הוספה",
     needName: "יש להזין שם.",
     orMatchRoster: "או התאמה לרשימה",
+    submissionAlt: "תמונה שהוגשה",
   },
   directory: {
     title: "מדריך",
@@ -829,6 +914,13 @@ const he: Dict = {
     pin: "קוד",
     group: "קבוצה",
     allGroups: "כל הקבוצות",
+    noDoor: "לא הוגדרה דלת. הוסיפו אחת בהגדרות.",
+    noDoorShort: "לא הוגדרה דלת.",
+    missingUser: "חסר משתמש.",
+    justNow: "הרגע",
+    minsAgo: "לפני {n} דק׳",
+    hrsAgo: "לפני {n} שע׳",
+    daysAgo: "לפני {n} ימים",
   },
   settings: {
     title: "הגדרות",
@@ -846,6 +938,34 @@ const he: Dict = {
     target: "יעד",
     when: "מתי",
     system: "מערכת",
+  },
+  doors: {
+    colDoor: "דלת",
+    colUrl: "כתובת",
+    colEmail: "מייל",
+    colSnapshots: "צילומים",
+    colStatus: "סטטוס",
+    yes: "כן",
+    active: "פעיל",
+    off: "כבוי",
+    disable: "השבתה",
+    enable: "הפעלה",
+    remove: "הסרה",
+    confirmRemove: "להסיר את הדלת \"{name}\"? (לא מוחק אף אחד מהמכשיר.)",
+    empty: "אין עדיין דלתות — הוסיפו אחת למטה.",
+    addTitle: "הוספת דלת",
+    name: "שם",
+    namePlaceholder: "דלת אחורית למטבח",
+    urlLabel: "כתובת מנהרה",
+    urlPlaceholder: "https://kitchen-back.example.org",
+    webPassword: "סיסמת אתר",
+    receivesEmail: "מקבל תמונות במייל",
+    pullDenied: "משיכת סריקות שנדחו",
+    testing: "בודק חיבור…",
+    addDoor: "הוספת דלת",
+    invalid: "הזינו שם, כתובת https תקינה, וסיסמת האתר.",
+    loginFailed: "לא ניתן להתחבר לדלת — בדקו את הכתובת והסיסמה.",
+    added: "{name} נוספה.",
   },
   common: {
     comingSoon: "בקרוב.",

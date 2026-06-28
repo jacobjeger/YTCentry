@@ -69,9 +69,10 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
   error?: string;
 }> {
   await requireUser();
+  const t = getDictionary(await getLocale());
   try {
     const id = await resolveDeviceId(deviceId);
-    if (!id) return { error: "No door configured. Add one in Settings." };
+    if (!id) return { error: t.directory.noDoor };
 
     let cached = await getCachedDirectory(id);
     if (cached.rows.length === 0) {
@@ -110,9 +111,10 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
 /** Force a fresh pull from the door into the cache (the Refresh button). */
 export async function refreshDirectory(deviceId?: string): Promise<{ error?: string }> {
   await requireUser();
+  const t = getDictionary(await getLocale());
   try {
     const id = await resolveDeviceId(deviceId);
-    if (!id) return { error: "No door configured." };
+    if (!id) return { error: t.directory.noDoorShort };
     const device = await prisma.device.findUnique({ where: { id } });
     if (device) await syncDeviceDirectory(device);
     return {};
@@ -135,8 +137,9 @@ export async function getPersonDetail(
   deviceId?: string,
 ): Promise<PersonDetail> {
   await requireUser();
+  const t = getDictionary(await getLocale());
   const id = await resolveDeviceId(deviceId);
-  if (!id) return { name: "", pin: "", group: "", groups: [], error: "No door." };
+  if (!id) return { name: "", pin: "", group: "", groups: [], error: t.directory.noDoorShort };
   // Read the CACHE — no device hit when opening the edit modal.
   const [person, groups] = await Promise.all([
     getCachedPerson(id, userID),
@@ -156,12 +159,13 @@ export async function savePersonEdit(
   formData: FormData,
 ): Promise<DirState> {
   const user = await requireUser();
+  const t = getDictionary(await getLocale());
   const userID = String(formData.get("userID") ?? "").trim();
   const deviceId = String(formData.get("deviceId") ?? "") || undefined;
   const name = String(formData.get("name") ?? "").trim();
   const pin = String(formData.get("pin") ?? "").trim();
   const group = String(formData.get("group") ?? "").trim();
-  if (!userID) return { error: "Missing user." };
+  if (!userID) return { error: t.directory.missingUser };
 
   try {
     const client = await deviceClientById(deviceId);

@@ -53,7 +53,7 @@ export default function ReviewCard({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={item.photoUrl}
-        alt="submission"
+        alt={t.review.submissionAlt}
         className="w-32 h-32 rounded-lg object-cover bg-stone-100 shrink-0"
       />
       <div className="flex-1 min-w-0">

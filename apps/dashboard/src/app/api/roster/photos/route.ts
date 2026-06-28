@@ -1,15 +1,18 @@
 import JSZip from "jszip";
 import { prisma, getPhotoBytes } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
+import { getLocale } from "@/lib/locale";
+import { getDictionary } from "@/lib/i18n";
 
 /** Zip the photos of the selected roster people, each named by the person. */
 export async function GET(req: Request) {
   await requireUser();
+  const t = getDictionary(await getLocale());
   const ids = (new URL(req.url).searchParams.get("ids") ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  if (ids.length === 0) return new Response("No people selected.", { status: 400 });
+  if (ids.length === 0) return new Response(t.roster.noneSelected, { status: 400 });
 
   const entries = await prisma.rosterEntry.findMany({
     where: { id: { in: ids } },
@@ -35,7 +38,7 @@ export async function GET(req: Request) {
       /* skip a photo we can't read */
     }
   }
-  if (added === 0) return new Response("None of the selected people have a photo.", { status: 404 });
+  if (added === 0) return new Response(t.roster.noPhotos, { status: 404 });
 
   const blob = await zip.generateAsync({ type: "uint8array" });
   return new Response(blob as BodyInit, {

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma, encryptSecret, clientForDevice } from "@ytc/core";
 import { requireAdmin } from "@/lib/auth";
+import { getLocale } from "@/lib/locale";
+import { getDictionary, fmt } from "@/lib/i18n";
 
 export interface DoorRow {
   id: string;
@@ -46,6 +48,7 @@ export async function addDoor(
   formData: FormData,
 ): Promise<DoorActionState> {
   await requireAdmin();
+  const t = getDictionary(await getLocale());
   const parsed = addSchema.safeParse({
     name: formData.get("name"),
     baseUrl: String(formData.get("baseUrl") ?? "").trim().replace(/\/+$/, ""),
@@ -55,7 +58,7 @@ export async function addDoor(
     pollSnapshots: formData.get("pollSnapshots") === "on",
   });
   if (!parsed.success) {
-    return { error: "Enter a name, a valid https URL, and the web password." };
+    return { error: t.doors.invalid };
   }
   let key = slug(parsed.data.name);
   // ensure unique key
@@ -80,11 +83,11 @@ export async function addDoor(
     await clientForDevice(device).webLogin();
   } catch {
     await prisma.device.delete({ where: { id: device.id } });
-    return { error: "Couldn't log into that door — check the URL and password." };
+    return { error: t.doors.loginFailed };
   }
 
   revalidatePath("/admin/settings");
-  return { ok: `Added ${device.name}.` };
+  return { ok: fmt(t.doors.added, { name: device.name }) };
 }
 
 export async function deleteDoor(formData: FormData) {

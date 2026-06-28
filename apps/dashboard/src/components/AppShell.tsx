@@ -69,10 +69,11 @@ export default function AppShell({
             <LanguageSwitcher />
             <Link
               href="/account"
-              className="text-xs text-stone-500 hover:text-bronze-dark hidden md:block"
+              className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-bronze hover:text-bronze-dark hover:bg-bronze/5 transition-colors"
               title={t.account.title}
             >
-              {email}
+              <span aria-hidden>👤</span>
+              <span>{email}</span>
             </Link>
             <form action={logout}>
               <button
