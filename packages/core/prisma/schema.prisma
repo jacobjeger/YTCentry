@@ -109,7 +109,7 @@ model Device {
   id            String   @id @default(cuid())
   key           String   @unique // slug, e.g. "front", "kitchen-back"
   name          String           // "Front Door"
-  baseUrl       String           // tunnel URL, e.g. https://faces.localabbrachfeld.org
+  baseUrl       String           // tunnel URL, e.g. https://door.<your-domain>
   webUser       String   @default("admin")
   webPasswordEnc String          // AES-GCM encrypted web login password
   active        Boolean  @default(true)
@@ -187,7 +187,7 @@ model RosterEntry {
   // trigram index added via raw migration: gin (normalized_name gin_trgm_ops)
 }
 
-/// A photo that arrived at ytc.entry@gmail.com.
+/// A photo that arrived at the enrollment mailbox.
 model PhotoSubmission {
   id             String           @id @default(cuid())
   gmailMessageId String           @unique // dedupe ingestion

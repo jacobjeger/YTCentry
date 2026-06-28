@@ -10,6 +10,7 @@ import {
   listTempPins,
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
+import { describeDeviceError } from "@/lib/device";
 
 export interface TempPinRow {
   id: string;
@@ -75,7 +76,7 @@ export async function createTempPinAction(
     revalidatePath("/temp-pins");
     return { ok: { pin, label } };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Couldn't create the PIN." };
+    return { error: describeDeviceError(e, "temp PIN create") };
   }
 }
 

@@ -565,7 +565,8 @@ export class AkuvoxClient {
 
     const rest: number[] = [];
     for (let p = 2; p <= totalPages; p++) rest.push(p);
-    const CONC = 4;
+    // Keep concurrency low — the E16C is a small device and chokes under load.
+    const CONC = 2;
     for (let i = 0; i < rest.length; i += CONC) {
       const batch = rest.slice(i, i + CONC);
       const results = await Promise.all(

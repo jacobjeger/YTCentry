@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Cloud email-ingestion worker (Railway). Polls ytc.entry@gmail.com over IMAP, stores photos, matches against the roster, creates PhotoSubmission rows. Never touches the LAN.",
+  "description": "Cloud email-ingestion worker (Railway). Polls the enrollment mailbox over IMAP, stores photos, matches against the roster, creates PhotoSubmission rows. Never touches the LAN.",
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts"

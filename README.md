@@ -4,8 +4,6 @@ A friendly web dashboard for managing the yeshiva's **Akuvox E16C** face scanner
 so office staff (not just IT) can add and manage who gets through the doors.
 Hebrew (primary, RTL) and English, auto-detected from the browser.
 
-Live: **https://access.ytchaim.com**
-
 ---
 
 ## What it does
@@ -45,10 +43,10 @@ and never written by automation.
   [Railway Bucket (S3)] ← face photos      [pusher (Railway worker)]
                                              • drains PushJob queue
 [ingest (Railway worker)]                    • polls denied door scans → Review Queue
-  • IMAP-polls ytc.entry@gmail.com           • syncs the directory cache (5 min)
+  • IMAP-polls the enrollment mailbox        • syncs the directory cache (5 min)
   • matches photos to the roster             • expires temp PINs + old door scans
 
-         Cloudflare tunnel:  https://faces.localabbrachfeld.org  →  E16C (LAN)
+         Cloudflare tunnel:  https://door.<your-domain>  →  E16C (LAN)
 ```
 
 The dashboard and workers reach the door through the existing **Cloudflare

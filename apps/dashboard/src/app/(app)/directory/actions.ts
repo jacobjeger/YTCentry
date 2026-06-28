@@ -12,7 +12,7 @@ import {
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { photoKey } from "@/lib/enroll";
-import { deviceClientById } from "@/lib/device";
+import { deviceClientById, describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
@@ -95,7 +95,7 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
       .sort((a, b) => Number(a.userID) - Number(b.userID));
     return { rows, total: rows.length, syncedAt: cached.syncedAt?.toISOString() ?? null };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Failed to load the door directory." };
+    return { error: describeDeviceError(e, "directory load") };
   }
 }
 
@@ -109,7 +109,7 @@ export async function refreshDirectory(deviceId?: string): Promise<{ error?: str
     if (device) await syncDeviceDirectory(device);
     return {};
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Sync failed." };
+    return { error: describeDeviceError(e, "directory refresh") };
   }
 }
 
@@ -164,7 +164,7 @@ export async function savePersonEdit(
       group: group || undefined,
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "The door rejected the edit." };
+    return { error: describeDeviceError(e, "edit person") };
   }
 
   const n = Number(userID);
