@@ -19,6 +19,7 @@ import {
   ID_BAND_START,
   getActiveDevices,
   clientForDevice,
+  upsertCacheRow,
   type EnrolleeSource,
   type Enrollee,
   type Device,
@@ -191,6 +192,15 @@ async function pushToDoors(
         where: { enrolleeId_deviceId: { enrolleeId: enrollee.id, deviceId: d.id } },
         create: { enrolleeId: enrollee.id, deviceId: d.id, status: "PUSHED", pushedAt: new Date() },
         update: { status: "PUSHED", pushedAt: new Date(), lastError: null },
+      });
+      // Reflect the new person in the directory cache at once (no waiting for sync).
+      await upsertCacheRow({
+        deviceId: d.id,
+        userID: String(enrollee.akuvoxUserId),
+        name: enrollee.displayName,
+        hasFace: true,
+        pin: enrollee.pin ?? null,
+        group: enrollee.groupName ?? null,
       });
       perDoor.push({ deviceId: d.id, name: d.name, ok: true });
     } catch (e) {

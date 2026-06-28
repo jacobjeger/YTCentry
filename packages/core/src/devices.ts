@@ -30,9 +30,20 @@ export function clientForDevice(d: Device): AkuvoxClient {
   });
 }
 
-/** Pull a door's full directory and replace its cache (fast: 2 queries). */
+/**
+ * Pull a door's full directory + groups and replace its cache. This is the ONLY
+ * routine that fans out across the device — everything else reads the cache, so
+ * the small E16C isn't overloaded by normal use.
+ */
 export async function syncDeviceDirectory(device: Device): Promise<number> {
-  const users = await clientForDevice(device).getAllUsersViaWeb();
+  const client = clientForDevice(device);
+  const users = await client.getAllUsersViaWeb();
+  let groups: string[] = [];
+  try {
+    groups = await client.getGroupsViaWeb();
+  } catch {
+    /* keep prior cached groups on a transient failure */
+  }
   await prisma.$transaction([
     prisma.deviceUserCache.deleteMany({ where: { deviceId: device.id } }),
     prisma.deviceUserCache.createMany({
@@ -41,10 +52,63 @@ export async function syncDeviceDirectory(device: Device): Promise<number> {
         userID: u.userID,
         name: u.name,
         hasFace: Number(u.faceID ?? 0) > 0,
+        pin: (u as Record<string, unknown>).privatePIN
+          ? String((u as Record<string, unknown>).privatePIN)
+          : null,
+        groupName: u.Group ? String(u.Group).trim() : null,
       })),
     }),
+    ...(groups.length
+      ? [prisma.device.update({ where: { id: device.id }, data: { groupsJson: groups } })]
+      : []),
   ]);
   return users.length;
+}
+
+/** Cached group names for a door (no device hit). */
+export async function getCachedGroups(deviceId: string): Promise<string[]> {
+  const d = await prisma.device.findUnique({ where: { id: deviceId }, select: { groupsJson: true } });
+  return Array.isArray(d?.groupsJson) ? (d!.groupsJson as string[]) : [];
+}
+
+/** Cached name/PIN/group for one person (no device hit). */
+export async function getCachedPerson(
+  deviceId: string,
+  userID: string,
+): Promise<{ name: string; pin: string; group: string } | null> {
+  const r = await prisma.deviceUserCache.findUnique({
+    where: { deviceId_userID: { deviceId, userID } },
+    select: { name: true, pin: true, groupName: true },
+  });
+  if (!r) return null;
+  return { name: r.name, pin: r.pin ?? "", group: r.groupName ?? "" };
+}
+
+/** Immediately reflect a write in the cache (so the directory updates instantly,
+ *  not after the next periodic sync). */
+export async function upsertCacheRow(opts: {
+  deviceId: string;
+  userID: string;
+  name: string;
+  hasFace: boolean;
+  pin?: string | null;
+  group?: string | null;
+}): Promise<void> {
+  await prisma.deviceUserCache.upsert({
+    where: { deviceId_userID: { deviceId: opts.deviceId, userID: opts.userID } },
+    create: {
+      deviceId: opts.deviceId, userID: opts.userID, name: opts.name,
+      hasFace: opts.hasFace, pin: opts.pin ?? null, groupName: opts.group ?? null,
+    },
+    update: {
+      name: opts.name, hasFace: opts.hasFace,
+      pin: opts.pin ?? null, groupName: opts.group ?? null,
+    },
+  });
+}
+
+export async function removeCacheRow(deviceId: string, userID: string): Promise<void> {
+  await prisma.deviceUserCache.deleteMany({ where: { deviceId, userID } });
 }
 
 export interface CachedDirectory {

@@ -10,7 +10,7 @@
  */
 import { randomInt } from "crypto";
 import { prisma } from "./db";
-import { clientForDevice } from "./devices";
+import { clientForDevice, upsertCacheRow, removeCacheRow } from "./devices";
 import { AkuvoxPinTakenError } from "./akuvox";
 import type { TempPin } from "@prisma/client";
 
@@ -65,6 +65,14 @@ export async function createTempPin(opts: {
       createdById: opts.createdById ?? null,
     },
   });
+  // reflect it in the directory cache immediately (no face)
+  await upsertCacheRow({
+    deviceId: opts.deviceId,
+    userID: String(userId),
+    name,
+    hasFace: false,
+    pin,
+  });
   return { pin, userId, expiresAt };
 }
 
@@ -87,6 +95,7 @@ async function deleteTempUserSafely(tp: TempPin): Promise<void> {
   const name = String(u.name ?? "");
   if (!name.includes(tp.label) && !name.startsWith("Guest")) return; // not ours — abort
   await client.delAnyUserWeb(tp.akuvoxUserId);
+  await removeCacheRow(tp.deviceId, String(tp.akuvoxUserId));
 }
 
 export async function revokeTempPin(id: string): Promise<void> {

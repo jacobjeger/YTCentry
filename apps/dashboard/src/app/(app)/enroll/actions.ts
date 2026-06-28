@@ -1,10 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { prisma } from "@ytc/core";
+import { prisma, getCachedGroups } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
-import { deviceClientById } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
@@ -20,14 +19,16 @@ export async function listEnrollDoors(): Promise<EnrollDoor[]> {
   });
 }
 
-/** The device's user groups, for the Add Person group picker. */
+/** The device's user groups, for the Add Person group picker. Reads the CACHE
+ *  (synced by the worker) so opening Add Person never hits the door. */
 export async function listGroups(): Promise<string[]> {
   await requireUser();
-  try {
-    return await (await deviceClientById()).getGroupsViaWeb();
-  } catch {
-    return [];
-  }
+  const device = await prisma.device.findFirst({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true },
+  });
+  return device ? getCachedGroups(device.id) : [];
 }
 
 const schema = z.object({

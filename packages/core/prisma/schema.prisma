@@ -116,6 +116,8 @@ model Device {
   allowEmail    Boolean  @default(false)
   pollSnapshots Boolean  @default(false)
   sortOrder     Int      @default(0)
+  groupsJson    Json?            // cached list of device group names (pusher-synced)
+  schedulesJson Json?            // cached schedules [{scheduleID,name}]
   createdAt     DateTime @default(now())
 
   enrollees     EnrolleeDevice[]
@@ -146,6 +148,8 @@ model DeviceUserCache {
   userID    String
   name      String
   hasFace   Boolean  @default(false)
+  pin       String?           // cached PrivatePIN (so edits/views don't hit the door)
+  groupName String?           // cached Group
   syncedAt  DateTime @default(now())
 
   @@unique([deviceId, userID])

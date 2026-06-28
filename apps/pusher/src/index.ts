@@ -112,8 +112,8 @@ async function cleanupLoop() {
   }
 }
 
-/** Keep the dashboard's directory cache fresh + expire temp PINs (every 5 min). */
-async function directorySyncLoop() {
+/** Expire temp PINs — DB-only unless one actually lapses. Cheap, runs often. */
+async function tempPinLoop() {
   while (running) {
     try {
       const expired = await expireTempPins();
@@ -121,6 +121,18 @@ async function directorySyncLoop() {
     } catch (e) {
       console.error("[temppin loop error]", e);
     }
+    await sleep(5 * 60 * 1000);
+  }
+}
+
+/**
+ * Reconcile the directory cache with the door. Since every dashboard action
+ * updates the cache instantly, this only catches edits made on the device's own
+ * screen — so it runs INFREQUENTLY (default 30 min) to spare the small E16C.
+ */
+async function directorySyncLoop() {
+  const interval = Number(process.env.DIRECTORY_SYNC_MS ?? 30 * 60 * 1000);
+  while (running) {
     try {
       for (const d of await getActiveDevices()) {
         try {
@@ -133,7 +145,7 @@ async function directorySyncLoop() {
     } catch (e) {
       console.error("[sync loop error]", e);
     }
-    await sleep(5 * 60 * 1000);
+    await sleep(interval);
   }
 }
 
@@ -142,6 +154,7 @@ async function main() {
     `ytc pusher up — ${cfg.dryRun ? "DRY_RUN (no device calls)" : `target ${cfg.akuvox.baseUrl}`}`,
   );
   cleanupLoop();
+  tempPinLoop();
   directorySyncLoop();
 
   // Door snapshots are device READS via the /web session (only need the web

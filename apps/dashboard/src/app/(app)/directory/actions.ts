@@ -8,7 +8,11 @@ import {
   audit,
   ID_BAND_START,
   getCachedDirectory,
+  getCachedGroups,
+  getCachedPerson,
   syncDeviceDirectory,
+  upsertCacheRow,
+  removeCacheRow,
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { photoKey } from "@/lib/enroll";
@@ -127,20 +131,19 @@ export async function getPersonDetail(
   deviceId?: string,
 ): Promise<PersonDetail> {
   await requireUser();
-  try {
-    const client = await deviceClientById(deviceId);
-    const u = (await client.findUserWeb(userID)) as Record<string, unknown> | null;
-    if (!u) return { name: "", pin: "", group: "", groups: [], error: "not found" };
-    const groups = await client.getGroupsViaWeb();
-    return {
-      name: String(u.name ?? "").trim(),
-      pin: String(u.privatePIN ?? ""),
-      group: String(u.Group ?? "").trim(),
-      groups,
-    };
-  } catch (e) {
-    return { name: "", pin: "", group: "", groups: [], error: e instanceof Error ? e.message : "failed" };
-  }
+  const id = await resolveDeviceId(deviceId);
+  if (!id) return { name: "", pin: "", group: "", groups: [], error: "No door." };
+  // Read the CACHE — no device hit when opening the edit modal.
+  const [person, groups] = await Promise.all([
+    getCachedPerson(id, userID),
+    getCachedGroups(id),
+  ]);
+  return {
+    name: person?.name ?? "",
+    pin: person?.pin ?? "",
+    group: person?.group ?? "",
+    groups,
+  };
 }
 
 /** Save edits (name/PIN/group) to an existing person on the door — face is kept. */
@@ -178,8 +181,13 @@ export async function savePersonEdit(
       },
     });
   }
-  if (deviceId && name) {
-    await prisma.deviceUserCache.updateMany({ where: { deviceId, userID }, data: { name } });
+  // Update the cache immediately so the directory reflects the edit at once.
+  const did = await resolveDeviceId(deviceId);
+  if (did) {
+    await prisma.deviceUserCache.updateMany({
+      where: { deviceId: did, userID },
+      data: { ...(name ? { name } : {}), pin: pin || null, groupName: group || null },
+    });
   }
   await audit({
     actorId: user.id,
@@ -200,6 +208,10 @@ export async function deleteFromDoor(formData: FormData) {
   if (!userID) return;
   const client = await deviceClientById(deviceId);
   await client.delAnyUserWeb(userID);
+
+  // Drop it from the cache at once so the directory updates immediately.
+  const did = await resolveDeviceId(deviceId);
+  if (did) await removeCacheRow(did, userID);
 
   const n = Number(userID);
   if (n >= ID_BAND_START) {
