@@ -5,11 +5,13 @@ import { z } from "zod";
 import { prisma, audit } from "@ytc/core";
 import { requireAdmin } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth";
+import { getLocale } from "@/lib/locale";
+import { getDictionary, fmt } from "@/lib/i18n";
 
 const createSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  password: z.string().min(8),
   role: z.enum(["ADMIN", "STAFF"]),
 });
 
@@ -20,6 +22,7 @@ export async function createStaff(
   formData: FormData,
 ): Promise<StaffActionState> {
   const admin = await requireAdmin();
+  const t = getDictionary(await getLocale());
   const parsed = createSchema.safeParse({
     email: formData.get("email"),
     name: formData.get("name"),
@@ -27,11 +30,12 @@ export async function createStaff(
     role: formData.get("role"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    const tooShort = parsed.error.issues.some((i) => i.path[0] === "password");
+    return { error: tooShort ? t.staff.pwTooShort : t.login.invalid };
   }
   const email = parsed.data.email.trim().toLowerCase();
   const existing = await prisma.staffUser.findUnique({ where: { email } });
-  if (existing) return { error: "A login with that email already exists." };
+  if (existing) return { error: t.staff.exists };
 
   const user = await prisma.staffUser.create({
     data: {
@@ -49,7 +53,7 @@ export async function createStaff(
     meta: { email, role: parsed.data.role },
   });
   revalidatePath("/admin/staff");
-  return { ok: `Created login for ${email}.` };
+  return { ok: fmt(t.staff.created, { email }) };
 }
 
 export async function setActive(formData: FormData) {

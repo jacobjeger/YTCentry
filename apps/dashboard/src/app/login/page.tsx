@@ -1,5 +1,7 @@
 import Image from "next/image";
 import LoginForm from "./LoginForm";
+import { getLocale } from "@/lib/locale";
+import { getDictionary } from "@/lib/i18n";
 
 export default async function LoginPage({
   searchParams,
@@ -7,6 +9,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
+  const t = getDictionary(await getLocale());
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
@@ -19,15 +22,15 @@ export default async function LoginPage({
             priority
           />
           <h1 className="mt-4 text-xl font-semibold text-bronze-dark">
-            YTC Entry
+            {t.login.title}
           </h1>
-          <p className="text-sm text-stone-500">Face enrollment dashboard</p>
+          <p className="text-sm text-stone-500">{t.login.subtitle}</p>
         </div>
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-6">
           <LoginForm next={next} />
         </div>
         <p className="mt-6 text-center text-xs text-stone-400">
-          Logins are issued by IT. Contact the office admin for access.
+          {t.login.footer}
         </p>
       </div>
     </div>

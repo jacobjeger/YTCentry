@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
+import { getLocale } from "@/lib/locale";
+import { getDictionary, fmt } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -18,24 +20,28 @@ async function stats() {
 
 export default async function Home() {
   const user = await requireUser();
+  const t = getDictionary(await getLocale());
   const s = await stats();
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold">Welcome, {user.name}</h1>
-        <p className="text-stone-500">
-          Enroll talmidim on the door reader — upload a photo or approve an
-          emailed one.
-        </p>
+        <h1 className="text-2xl font-semibold">
+          {fmt(t.home.welcome, { name: user.name })}
+        </h1>
+        <p className="text-stone-500">{t.home.subtitle}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Enrolled on door" value={s.enrolled} href="/directory" />
-        <StatCard label="Awaiting review" value={s.needsReview} href="/review" />
-        <StatCard label="In push queue" value={s.queued} href="/directory" />
+        <StatCard label={t.home.enrolled} value={s.enrolled} href="/directory" />
         <StatCard
-          label="Push failed"
+          label={t.home.awaitingReview}
+          value={s.needsReview}
+          href="/review"
+        />
+        <StatCard label={t.home.inQueue} value={s.queued} href="/directory" />
+        <StatCard
+          label={t.home.pushFailed}
           value={s.pushFailed}
           href="/directory"
           warn={s.pushFailed > 0}
@@ -45,14 +51,14 @@ export default async function Home() {
       <div className="grid gap-4 sm:grid-cols-2">
         <ActionCard
           href="/enroll"
-          title="Add a person"
-          body="Type a name, snap or upload a photo, and send them to the door."
+          title={t.home.addTitle}
+          body={t.home.addBody}
           primary
         />
         <ActionCard
           href="/review"
-          title="Review emailed photos"
-          body="Match incoming photos to the roster and approve them for enrollment."
+          title={t.home.reviewTitle}
+          body={t.home.reviewBody}
         />
       </div>
     </div>
@@ -100,9 +106,7 @@ function ActionCard({
     <Link
       href={href}
       className={`rounded-xl border p-6 transition-shadow hover:shadow-sm ${
-        primary
-          ? "border-bronze bg-bronze/5"
-          : "border-stone-200 bg-white"
+        primary ? "border-bronze bg-bronze/5" : "border-stone-200 bg-white"
       }`}
     >
       <h2 className="text-lg font-semibold text-bronze-dark">{title}</h2>

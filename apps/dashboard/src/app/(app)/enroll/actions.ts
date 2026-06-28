@@ -3,6 +3,8 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
+import { getLocale } from "@/lib/locale";
+import { getDictionary } from "@/lib/i18n";
 
 const schema = z.object({
   displayName: z.string().min(1, "Name is required."),
@@ -21,6 +23,7 @@ export async function enrollAction(
   formData: FormData,
 ): Promise<EnrollState> {
   const user = await requireUser();
+  const t = getDictionary(await getLocale());
 
   const parsed = schema.safeParse({
     displayName: formData.get("displayName"),
@@ -29,15 +32,15 @@ export async function enrollAction(
     phone: formData.get("phone") || undefined,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return { error: parsed.error.issues[0]?.message ?? t.login.invalid };
   }
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
-    return { error: "Add a photo — upload one or capture from the webcam." };
+    return { error: t.enroll.noFace };
   }
   if (file.size > 15 * 1024 * 1024) {
-    return { error: "That image is too large (max 15MB)." };
+    return { error: t.enroll.tooLarge };
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -55,6 +58,6 @@ export async function enrollAction(
   } catch (e) {
     if (e instanceof EnrollError) return { error: e.message };
     console.error("enroll failed", e);
-    return { error: "Something went wrong saving this person. Try again." };
+    return { error: t.common.error };
   }
 }

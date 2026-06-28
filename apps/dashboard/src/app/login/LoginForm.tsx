@@ -2,8 +2,10 @@
 
 import { useActionState } from "react";
 import { loginAction, type LoginState } from "./actions";
+import { useT } from "@/components/LocaleProvider";
 
 export default function LoginForm({ next }: { next?: string }) {
+  const t = useT();
   const [state, formAction, pending] = useActionState<LoginState, FormData>(
     loginAction,
     {},
@@ -13,7 +15,7 @@ export default function LoginForm({ next }: { next?: string }) {
     <form action={formAction} className="flex flex-col gap-4">
       {next ? <input type="hidden" name="next" value={next} /> : null}
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-stone-700">Email</span>
+        <span className="text-sm font-medium text-stone-700">{t.login.email}</span>
         <input
           name="email"
           type="email"
@@ -23,7 +25,9 @@ export default function LoginForm({ next }: { next?: string }) {
         />
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-stone-700">Password</span>
+        <span className="text-sm font-medium text-stone-700">
+          {t.login.password}
+        </span>
         <input
           name="password"
           type="password"
@@ -40,7 +44,7 @@ export default function LoginForm({ next }: { next?: string }) {
         disabled={pending}
         className="mt-2 rounded-lg bg-bronze px-4 py-2.5 font-medium text-white hover:bg-bronze-dark disabled:opacity-60"
       >
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? t.login.signingIn : t.login.signIn}
       </button>
     </form>
   );

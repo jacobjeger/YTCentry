@@ -4,22 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions";
-
-interface NavItem {
-  href: string;
-  label: string;
-  adminOnly?: boolean;
-}
-
-const NAV: NavItem[] = [
-  { href: "/", label: "Home" },
-  { href: "/enroll", label: "Add Person" },
-  { href: "/review", label: "Review Queue" },
-  { href: "/roster", label: "Roster" },
-  { href: "/directory", label: "Directory" },
-  { href: "/admin/staff", label: "Staff", adminOnly: true },
-  { href: "/admin/settings", label: "Settings", adminOnly: true },
-];
+import { useT } from "./LocaleProvider";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function AppShell({
   email,
@@ -31,7 +17,17 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const items = NAV.filter((n) => !n.adminOnly || role === "ADMIN");
+  const t = useT();
+
+  const items: { href: string; label: string; adminOnly?: boolean }[] = [
+    { href: "/", label: t.nav.home },
+    { href: "/enroll", label: t.nav.enroll },
+    { href: "/review", label: t.nav.review },
+    { href: "/roster", label: t.nav.roster },
+    { href: "/directory", label: t.nav.directory },
+    { href: "/admin/staff", label: t.nav.staff, adminOnly: true },
+    { href: "/admin/settings", label: t.nav.settings, adminOnly: true },
+  ].filter((n) => !n.adminOnly || role === "ADMIN");
 
   return (
     <div className="min-h-full flex flex-col">
@@ -46,15 +42,13 @@ export default function AppShell({
               priority
             />
             <span className="font-semibold text-bronze-dark hidden sm:block">
-              YTC&nbsp;Entry
+              {t.brand}
             </span>
           </Link>
           <nav className="flex items-center gap-1 overflow-x-auto flex-1">
             {items.map((n) => {
               const active =
-                n.href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(n.href);
+                n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
               return (
                 <Link
                   key={n.href}
@@ -71,6 +65,7 @@ export default function AppShell({
             })}
           </nav>
           <div className="flex items-center gap-3 shrink-0">
+            <LanguageSwitcher />
             <span className="text-xs text-stone-500 hidden md:block">
               {email}
             </span>
@@ -79,7 +74,7 @@ export default function AppShell({
                 type="submit"
                 className="text-sm text-stone-600 hover:text-bronze-dark underline-offset-2 hover:underline"
               >
-                Sign out
+                {t.nav.signOut}
               </button>
             </form>
           </div>

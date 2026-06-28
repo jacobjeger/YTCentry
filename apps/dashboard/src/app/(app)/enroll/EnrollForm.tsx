@@ -8,6 +8,8 @@ import {
   useCallback,
 } from "react";
 import { enrollAction, type EnrollState } from "./actions";
+import { useT } from "@/components/LocaleProvider";
+import { fmt } from "@/lib/i18n";
 
 const input =
   "rounded-lg border border-stone-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-bronze";
@@ -15,6 +17,7 @@ const input =
 type Mode = "upload" | "webcam";
 
 export default function EnrollForm() {
+  const t = useT();
   const [state, formAction, pending] = useActionState<EnrollState, FormData>(
     enrollAction,
     {},
@@ -66,9 +69,9 @@ export default function EnrollForm() {
         await videoRef.current.play();
       }
     } catch {
-      setCamError("Couldn't open the webcam. Check browser permissions.");
+      setCamError(t.enroll.camError);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (mode === "webcam") startCam();
@@ -116,18 +119,16 @@ export default function EnrollForm() {
     return (
       <div className="rounded-xl border border-green-200 bg-green-50 p-6">
         <h2 className="text-lg font-semibold text-green-800">
-          {state.ok.name} is queued for the door
+          {fmt(t.enroll.queuedTitle, { name: state.ok.name })}
         </h2>
         <p className="text-sm text-green-700 mt-1">
-          Door ID <span className="font-mono">{state.ok.userId}</span>. The
-          on-site agent will write the face and confirm it shortly — watch the
-          Directory for the status.
+          {fmt(t.enroll.queuedBody, { userId: state.ok.userId })}
         </p>
         <button
           onClick={reset}
           className="mt-4 rounded-lg bg-bronze px-4 py-2 text-white font-medium hover:bg-bronze-dark"
         >
-          Add another
+          {t.enroll.addAnother}
         </button>
       </div>
     );
@@ -141,21 +142,27 @@ export default function EnrollForm() {
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 sm:col-span-2">
-          <span className="text-sm font-medium text-stone-700">Name *</span>
+          <span className="text-sm font-medium text-stone-700">
+            {t.enroll.name} *
+          </span>
           <input name="displayName" required className={input} />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-stone-700">
-            Student ID
+            {t.enroll.studentId}
           </span>
           <input name="studentId" className={input} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-stone-700">Shiur</span>
+          <span className="text-sm font-medium text-stone-700">
+            {t.enroll.shiur}
+          </span>
           <input name="shiur" className={input} />
         </label>
         <label className="flex flex-col gap-1 sm:col-span-2">
-          <span className="text-sm font-medium text-stone-700">Phone</span>
+          <span className="text-sm font-medium text-stone-700">
+            {t.enroll.phone}
+          </span>
           <input name="phone" className={input} />
         </label>
       </div>
@@ -164,10 +171,10 @@ export default function EnrollForm() {
       <div>
         <div className="flex gap-2 mb-3">
           <TabBtn active={mode === "upload"} onClick={() => setMode("upload")}>
-            Upload photo
+            {t.enroll.uploadPhoto}
           </TabBtn>
           <TabBtn active={mode === "webcam"} onClick={() => setMode("webcam")}>
-            Use webcam
+            {t.enroll.useWebcam}
           </TabBtn>
         </div>
 
@@ -196,7 +203,7 @@ export default function EnrollForm() {
                     onClick={capture}
                     className="rounded-lg bg-stone-800 text-white px-4 py-2 text-sm font-medium hover:bg-stone-700"
                   >
-                    Capture
+                    {t.enroll.capture}
                   </button>
                 )}
               </>
@@ -212,7 +219,7 @@ export default function EnrollForm() {
                 className="max-h-[280px] rounded-md object-contain"
               />
             ) : (
-              <span className="text-sm text-stone-400">Photo preview</span>
+              <span className="text-sm text-stone-400">{t.enroll.preview}</span>
             )}
           </div>
         </div>
@@ -230,10 +237,10 @@ export default function EnrollForm() {
           disabled={pending || !photo}
           className="rounded-lg bg-bronze px-6 py-3 text-white font-semibold hover:bg-bronze-dark disabled:opacity-50"
         >
-          {pending ? "Enrolling…" : "Enroll"}
+          {pending ? t.enroll.enrolling : t.enroll.enroll}
         </button>
         {!photo ? (
-          <span className="text-sm text-stone-400">Add a photo to continue</span>
+          <span className="text-sm text-stone-400">{t.enroll.needPhoto}</span>
         ) : null}
       </div>
     </form>
