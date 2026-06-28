@@ -24,8 +24,6 @@ import sharp from "sharp";
 
 const MAX_BYTES = 2 * 1024 * 1024; // device-friendly cap (<= 2MB)
 const MAX_EDGE = 1024; // downscale longest edge to this
-const MIN_EDGE = 160; // floor; the E16C's own door snapshots are ~180px short-edge
-const DARK_THRESHOLD = 40; // mean luminance below this = "too dark"
 
 export interface FaceValidation {
   ok: boolean;
@@ -59,19 +57,9 @@ export async function validateFace(input: Uint8Array): Promise<FaceValidation> {
   if (!meta.width || !meta.height) {
     return { ok: false, reason: "Image has no dimensions." };
   }
-  if (Math.min(meta.width, meta.height) < MIN_EDGE) {
-    return {
-      ok: false,
-      reason: `Image too small (${meta.width}x${meta.height}); need at least ${MIN_EDGE}px on the short edge.`,
-    };
-  }
-
-  // Cheap brightness gate.
-  const stats = await img.clone().greyscale().stats();
-  const meanLuma = stats.channels[0]?.mean ?? 255;
-  if (meanLuma < DARK_THRESHOLD) {
-    return { ok: false, reason: "Image looks too dark — retake with more light." };
-  }
+  // NOTE: we intentionally DON'T reject on brightness or small size here — the
+  // door device is the real judge of whether a face is usable (we verify after
+  // push that faceID landed). This gate only rejects things that aren't images.
 
   // Normalize: downscale longest edge, JPEG encode under the size cap.
   let quality = 85;

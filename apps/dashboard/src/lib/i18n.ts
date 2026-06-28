@@ -262,9 +262,9 @@ const en: Dict = {
     enrolling: "Enrolling…",
     camError: "Couldn't open the webcam. Check browser permissions.",
     noFace: "Add a photo — upload one or capture from the webcam.",
-    queuedTitle: "{name} is queued for the door",
+    queuedTitle: "{name} is on the door",
     queuedBody:
-      "Door ID {userId}. The push worker will write the face and confirm it shortly — watch the Directory for the status.",
+      "Door ID {userId} — the face is confirmed on the scanner. They can enter now.",
     addAnother: "Add another",
     needPhoto: "Add a photo to continue",
     tooLarge: "That image is too large (max 15MB).",
@@ -457,9 +457,8 @@ const he: Dict = {
     enrolling: "רושם…",
     camError: "לא ניתן לפתוח את המצלמה. בדקו את הרשאות הדפדפן.",
     noFace: "הוסיפו תמונה — העלו אחת או צלמו מהמצלמה.",
-    queuedTitle: "{name} בתור לדלת",
-    queuedBody:
-      "מזהה דלת {userId}. עובד השליחה יכתוב את הפנים ויאשר בקרוב — עקבו אחר הסטטוס במדריך.",
+    queuedTitle: "{name} נמצא בדלת",
+    queuedBody: "מזהה דלת {userId} — הפנים אושרו בסורק. ניתן להיכנס עכשיו.",
     addAnother: "הוספת אדם נוסף",
     needPhoto: "הוסיפו תמונה כדי להמשיך",
     tooLarge: "התמונה גדולה מדי (עד 15MB).",

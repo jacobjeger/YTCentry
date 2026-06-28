@@ -46,12 +46,14 @@ export async function enrollAction(
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   try {
-    const { enrollee } = await enrollPerson({
+    const { enrollee, pushed, deviceError } = await enrollPerson({
       ...parsed.data,
       source: "MANUAL",
       image: bytes,
       actorId: user.id,
     });
+    // Only report success if the door actually accepted the face.
+    if (!pushed) return { error: deviceError ?? t.common.error };
     return {
       ok: { name: enrollee.displayName, userId: enrollee.akuvoxUserId },
     };

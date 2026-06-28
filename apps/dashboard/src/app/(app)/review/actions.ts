@@ -40,7 +40,7 @@ export async function approveSubmission(
   }
 
   try {
-    const { enrollee } = await enrollPerson({
+    const { enrollee, pushed, deviceError } = await enrollPerson({
       displayName: roster.fullName,
       studentId: roster.studentId,
       shiur: roster.shiur,
@@ -68,6 +68,7 @@ export async function approveSubmission(
       meta: { studentId, akuvoxUserId: enrollee.akuvoxUserId },
     });
     revalidatePath("/review");
+    if (!pushed) return { error: deviceError ?? t.common.error };
     return {
       ok: fmt(t.review.approvedMsg, {
         name: enrollee.displayName,
@@ -110,7 +111,7 @@ export async function enrollByName(
   }
 
   try {
-    const { enrollee } = await enrollPerson({
+    const { enrollee, pushed, deviceError } = await enrollPerson({
       displayName,
       studentId,
       source: "MANUAL",
@@ -129,6 +130,7 @@ export async function enrollByName(
       meta: { displayName, akuvoxUserId: enrollee.akuvoxUserId, byName: true },
     });
     revalidatePath("/review");
+    if (!pushed) return { error: deviceError ?? t.common.error };
     return {
       ok: fmt(t.review.approvedMsg, {
         name: enrollee.displayName,

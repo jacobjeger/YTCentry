@@ -324,6 +324,40 @@ export class AkuvoxClient {
       (body?.retcode === 0 || body?.retcode === 1) &&
       String(body?.message ?? "").toLowerCase() === "ok";
     if (!ok) throw new AkuvoxError("Device rejected /web/user/set.", body);
+
+    // Verify the face ACTUALLY attached — the device accepts the call but won't
+    // enroll a face it can't read. faceID > 0 means a real face template landed.
+    const u = await this.findUserWeb(id);
+    if (!u) {
+      throw new AkuvoxError(`Push verify failed: user ${id} not found on the door.`);
+    }
+    if (Number(u.faceID ?? 0) <= 0) {
+      throw new AkuvoxError(
+        "The door couldn't read a face in that photo. Use a clear, front-facing photo (good light, one face).",
+      );
+    }
+  }
+
+  /** Find one user on the device by UserID via /web search. */
+  async findUserWeb(userId: string | number): Promise<DeviceUser | null> {
+    const id = String(userId);
+    const search = async (session: string) => {
+      const q = new URLSearchParams({
+        page: "1", search: id, type: "0", facestatus: "0", session, web: "1",
+      });
+      const res = await fetch(`${this.cfg.baseUrl}/web/user/get?${q}`, {
+        headers: this.cfHeaders(),
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web/user/get.`);
+      return res.json();
+    };
+    let body = await search(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await search(await this.webLogin());
+    }
+    const list = (body?.data?.userList ?? []) as DeviceUser[];
+    return list.find((u) => String(u.userID) === id) ?? null;
   }
 
   /** Delete a user via the /web session transport. */
@@ -381,11 +415,17 @@ export class AkuvoxClient {
       first = await this.webUserPage(1, await this.webLogin());
     }
     const session = this.webSession!;
-    const pageNum: number = first?.data?.pageNum ?? 1;
-    const all: DeviceUser[] = [...(first?.data?.userList ?? [])];
+    const page1: DeviceUser[] = first?.data?.userList ?? [];
+    const all: DeviceUser[] = [...page1];
+
+    // Compute total pages from the total count and the actual page size, rather
+    // than trusting pageNum (which is unreliable across firmwares).
+    const sum: number = Number(first?.data?.sum ?? page1.length);
+    const pageSize = page1.length || 1;
+    const totalPages = Math.max(1, Math.ceil(sum / pageSize));
 
     const rest: number[] = [];
-    for (let p = 2; p <= pageNum; p++) rest.push(p);
+    for (let p = 2; p <= totalPages; p++) rest.push(p);
     const CONC = 4;
     for (let i = 0; i < rest.length; i += CONC) {
       const batch = rest.slice(i, i + CONC);

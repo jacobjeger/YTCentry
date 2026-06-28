@@ -1,12 +1,12 @@
 /**
- * Enrollment core — shared by the two entry points (manual Add Person and the
- * emailed-photo Review Queue approval). See CLAUDE.md "Enrollment core".
+ * Enrollment core — shared by manual Add Person and the Review Queue approvals.
  *
- *   validateFace(image) -> allocateUserId() -> create/Update Enrollee
- *     -> enqueue PushJob(ADD) -> enqueue PushJob(UPDATE_FACE)
+ *   validateFace(image) -> allocateUserId() -> create Enrollee
+ *     -> push to the door SYNCHRONOUSLY (dashboard reaches it through the public
+ *        tunnel) and VERIFY the face attached -> set real PUSHED/PUSH_FAILED.
  *
- * Nothing here talks to the door — it only writes rows. The on-site agent
- * (Task #6) drains the PushJob queue against the E16C over the LAN.
+ * Synchronous push means the caller learns the true result — we never report
+ * success unless the door actually accepted the face (faceID > 0).
  */
 import "server-only";
 import {
@@ -20,6 +20,7 @@ import {
   type EnrolleeSource,
   type Enrollee,
 } from "@ytc/core";
+import { deviceClient } from "./device";
 
 export class EnrollError extends Error {}
 
@@ -48,49 +49,54 @@ export interface EnrollInput {
 
 export interface EnrollResult {
   enrollee: Enrollee;
+  pushed: boolean;
+  /** the real device error when pushed === false */
+  deviceError?: string;
 }
 
 /**
- * Validate the face, store the normalized photo, allocate a band-safe UserID,
- * create the Enrollee, and queue the two push jobs. Retries the ID allocation on
- * a unique-constraint race.
+ * Normalize the photo, allocate a band-safe UserID, create the Enrollee, then
+ * push to the door and verify. Retries the ID allocation on a unique-constraint
+ * race. Throws EnrollError only for things that block creation (unreadable
+ * image); a failed *push* returns pushed:false + the reason (the Enrollee still
+ * exists as PUSH_FAILED and can be retried from the Directory).
  */
 export async function enrollPerson(input: EnrollInput): Promise<EnrollResult> {
-  // 1. Server-side face gate (normalizes + re-encodes <=2MB).
+  // Normalize only — the door is the real judge of face quality (verified after
+  // push). We don't reject dark/small photos here.
   const face = await validateFace(input.image);
   if (!face.ok || !face.image) {
-    throw new EnrollError(face.reason ?? "Face did not pass validation.");
+    throw new EnrollError(face.reason ?? "Couldn't read that image — try another.");
   }
 
-  for (let attempt = 0; attempt < 5; attempt++) {
+  let enrollee: Enrollee | null = null;
+  for (let attempt = 0; attempt < 5 && !enrollee; attempt++) {
     try {
-      return await createWithAllocatedId(input, face.image);
+      enrollee = await createEnrollee(input, face.image);
     } catch (e) {
-      // P2002 on akuvoxUserId means two enrollments grabbed the same id — retry.
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002" &&
         (e.meta?.target as string[] | undefined)?.includes("akuvoxUserId")
       ) {
-        continue;
+        continue; // someone grabbed the same id — retry
       }
       throw e;
     }
   }
-  throw new EnrollError("Could not allocate a free UserID — please retry.");
+  if (!enrollee) throw new EnrollError("Could not allocate a free UserID — retry.");
+
+  return pushToDoor(enrollee, face.image, input.actorId);
 }
 
-async function createWithAllocatedId(
+async function createEnrollee(
   input: EnrollInput,
   imageBytes: Uint8Array,
-): Promise<EnrollResult> {
+): Promise<Enrollee> {
   const userId = await allocateUserId();
   if (userId < ID_BAND_START) {
     throw new EnrollError("Allocated UserID fell outside the automation band.");
   }
-
-  // Store the normalized photo under a name-based, collision-free key
-  // ("First_Last-<userId>.jpg"). The userId keeps it unique across same names.
   const photoPath = photoKey(input.displayName, userId);
   await putPhoto(photoPath, imageBytes, "image/jpeg");
 
@@ -108,22 +114,6 @@ async function createWithAllocatedId(
         createdById: input.actorId ?? null,
       },
     });
-
-    const snapshot = {
-      akuvoxUserId: created.akuvoxUserId,
-      name: created.displayName,
-      scheduleRelay: created.scheduleRelay,
-      photoPath,
-    };
-    // ADD creates the bare user record; UPDATE_FACE attaches the face. The agent
-    // runs them in order (a fresh UserID + face is the device's confirmed flow).
-    await tx.pushJob.createMany({
-      data: [
-        { enrolleeId: created.id, action: "ADD", payload: snapshot },
-        { enrolleeId: created.id, action: "UPDATE_FACE", payload: snapshot },
-      ],
-    });
-
     if (input.rosterEntryId) {
       await tx.rosterEntry.update({
         where: { id: input.rosterEntryId },
@@ -140,6 +130,41 @@ async function createWithAllocatedId(
     targetId: enrollee.id,
     meta: { akuvoxUserId: enrollee.akuvoxUserId, source: input.source },
   });
+  return enrollee;
+}
 
-  return { enrollee };
+/** Push to the door synchronously and verify the face landed. */
+async function pushToDoor(
+  enrollee: Enrollee,
+  imageBytes: Uint8Array,
+  actorId?: string | null,
+): Promise<EnrollResult> {
+  try {
+    const client = deviceClient();
+    await client.pushUserWeb({
+      userId: enrollee.akuvoxUserId,
+      name: enrollee.displayName,
+      image: imageBytes,
+      scheduleRelay: enrollee.scheduleRelay,
+    });
+    const updated = await prisma.enrollee.update({
+      where: { id: enrollee.id },
+      data: { status: "PUSHED", pushedAt: new Date(), faceUrl: "set", lastError: null },
+    });
+    await audit({
+      actorId,
+      action: "face.push",
+      targetType: "Enrollee",
+      targetId: enrollee.id,
+      meta: { akuvoxUserId: enrollee.akuvoxUserId },
+    });
+    return { enrollee: updated, pushed: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Push to the door failed.";
+    const updated = await prisma.enrollee.update({
+      where: { id: enrollee.id },
+      data: { status: "PUSH_FAILED", lastError: msg },
+    });
+    return { enrollee: updated, pushed: false, deviceError: msg };
+  }
 }
