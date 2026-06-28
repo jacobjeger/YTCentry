@@ -98,6 +98,29 @@ export interface Dict {
     created: string; // "{email}"
     pwTooShort: string;
   };
+  roster: {
+    title: string;
+    subtitle: string;
+    chooseFile: string;
+    parsing: string;
+    rowsFound: string; // "{count}"
+    mapping: string;
+    colStudentId: string;
+    colName: string;
+    colShiur: string;
+    colPhone: string;
+    colAliases: string;
+    aliasesHint: string;
+    none: string;
+    preview: string;
+    import: string;
+    importing: string;
+    back: string;
+    needNameId: string;
+    imported: string; // "{created}" "{updated}"
+    parseError: string;
+    empty: string;
+  };
   common: {
     comingSoon: string;
     error: string;
@@ -191,6 +214,30 @@ const en: Dict = {
     created: "Created login for {email}.",
     pwTooShort: "Password must be at least 8 characters.",
   },
+  roster: {
+    title: "Roster",
+    subtitle:
+      "Upload the incoming-talmid list (CSV or Excel). We match emailed photos against it.",
+    chooseFile: "Choose a CSV or Excel file",
+    parsing: "Reading file…",
+    rowsFound: "{count} rows found. Map the columns, then import.",
+    mapping: "Column mapping",
+    colStudentId: "Student ID column",
+    colName: "Name column",
+    colShiur: "Shiur column",
+    colPhone: "Phone column",
+    colAliases: "Aliases column",
+    aliasesHint: "Optional — comma-separated alternate spellings (Yitzchok/Yitzchak).",
+    none: "— none —",
+    preview: "Preview",
+    import: "Import roster",
+    importing: "Importing…",
+    back: "Choose a different file",
+    needNameId: "Map both a Student ID column and a Name column.",
+    imported: "Imported: {created} added, {updated} updated.",
+    parseError: "Couldn't read that file. Use CSV or .xlsx with a header row.",
+    empty: "That file has no data rows.",
+  },
   common: {
     comingSoon: "Coming soon.",
     error: "Something went wrong. Please try again.",
@@ -281,6 +328,29 @@ const he: Dict = {
     exists: "כבר קיים חשבון עם אימייל זה.",
     created: "נוצר חשבון עבור {email}.",
     pwTooShort: "הסיסמה חייבת להכיל לפחות 8 תווים.",
+  },
+  roster: {
+    title: "רשימת תלמידים",
+    subtitle: "העלו את רשימת התלמידים הנכנסים (CSV או Excel). נשתמש בה להתאמת תמונות מהמייל.",
+    chooseFile: "בחרו קובץ CSV או Excel",
+    parsing: "קורא קובץ…",
+    rowsFound: "נמצאו {count} שורות. מפו את העמודות וייבאו.",
+    mapping: "מיפוי עמודות",
+    colStudentId: "עמודת מספר תלמיד",
+    colName: "עמודת שם",
+    colShiur: "עמודת שיעור",
+    colPhone: "עמודת טלפון",
+    colAliases: "עמודת כינויים",
+    aliasesHint: "רשות — איותים חלופיים מופרדים בפסיק (Yitzchok/Yitzchak).",
+    none: "— ללא —",
+    preview: "תצוגה מקדימה",
+    import: "ייבוא רשימה",
+    importing: "מייבא…",
+    back: "בחירת קובץ אחר",
+    needNameId: "יש למפות גם עמודת מספר תלמיד וגם עמודת שם.",
+    imported: "יובאו: {created} נוספו, {updated} עודכנו.",
+    parseError: "לא ניתן לקרוא את הקובץ. השתמשו ב‑CSV או ב‑xlsx עם שורת כותרת.",
+    empty: "אין שורות נתונים בקובץ.",
   },
   common: {
     comingSoon: "בקרוב.",
