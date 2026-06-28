@@ -13,6 +13,7 @@ import {
   type DoorOption,
 } from "./actions";
 import EditPersonModal from "./EditPersonModal";
+import Spinner from "@/components/Spinner";
 import { useActionState, useRef } from "react";
 import { useT } from "@/components/LocaleProvider";
 import { fmt } from "@/lib/i18n";
@@ -130,8 +131,8 @@ export default function UnifiedDirectory() {
           {error}
         </div>
       ) : rows === null ? (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-stone-500">
-          {t.directory.loadingDevice}
+        <div className="rounded-xl border border-stone-200 bg-white p-8">
+          <Spinner label={t.directory.loadingDevice} />
         </div>
       ) : (
         <>
