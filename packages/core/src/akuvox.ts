@@ -33,6 +33,21 @@ export interface AkuvoxUser {
   WebRelay: string;
 }
 
+/**
+ * A door-log record. Field names are UNCONFIRMED (vary by firmware) — keep this
+ * permissive until a live /api/doorlog/get capture pins them down. Common fields
+ * across Akuvox firmwares are listed; the snapshot is referenced by some path.
+ */
+export interface DoorLogRecord {
+  [key: string]: unknown;
+  Time?: string;
+  Name?: string;
+  UserID?: string;
+  Status?: string; // e.g. "Success" / "Failed" / access result
+  Type?: string; // e.g. "Face" / "PIN" / "Card"
+  Pic?: string; // snapshot path/url when Save Picture is enabled
+}
+
 export interface AkuvoxConfig {
   baseUrl: string;        // LAN "http://10.0.0.215" OR the gated tunnel "https://door.<domain>"
   apiUser: string;        // "admin"
@@ -128,6 +143,23 @@ export class AkuvoxClient {
   async getUser(userId: string | number): Promise<AkuvoxUser | null> {
     const all = await this.getUsers();
     return all.find((u) => u.UserID === String(userId)) ?? null;
+  }
+
+  /**
+   * Pull the device's door log (access records). The E16C captures a snapshot on
+   * each access attempt when **Save Picture** is enabled in the device settings;
+   * those snapshots are what let us enroll someone straight from a denied scan.
+   *
+   * UNCONFIRMED SHAPE — like the enrollFace transport, the exact response fields
+   * and how the snapshot image is referenced/fetched must be confirmed against
+   * the live device once Save Picture is on (capture one /api/doorlog/get on the
+   * Logs page). Returns the raw items so the caller can adapt. Records typically
+   * carry a timestamp, an access result (granted/denied), the matched name/UserID
+   * when recognized, and a picture path when Save Picture is on.
+   */
+  async getDoorLogs(): Promise<DoorLogRecord[]> {
+    const body = await this.call("doorlog", "get");
+    return (body?.data?.item ?? []) as DoorLogRecord[];
   }
 
   /** Highest UserID currently on the device (across ALL bands) — for safe allocation. */
