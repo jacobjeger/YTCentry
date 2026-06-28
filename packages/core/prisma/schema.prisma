@@ -81,6 +81,8 @@ model Enrollee {
   shiur        String?
   phone        String?
   source       EnrolleeSource
+  groupName    String?                // device user group (talmidim/staff/shiur…)
+  pin          String?                // device PrivatePIN (door access code)
   photoPath    String?                // object storage key (R2/Supabase)
   faceUrl      String?                // value stored in the device's FaceUrl field
   scheduleRelay String        @default("1001-1") // 24h on the single relay

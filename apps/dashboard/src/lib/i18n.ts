@@ -77,6 +77,9 @@ export interface Dict {
     tooLarge: string;
     doorsLabel: string;
     pickDoor: string;
+    groupLabel: string;
+    groupNone: string;
+    pinLabel: string;
   };
   staff: {
     title: string;
@@ -277,6 +280,9 @@ const en: Dict = {
     tooLarge: "That image is too large (max 15MB).",
     doorsLabel: "Add to which doors?",
     pickDoor: "Pick at least one door.",
+    groupLabel: "Group",
+    groupNone: "No group",
+    pinLabel: "PIN (optional)",
   },
   staff: {
     title: "Staff logins",
@@ -479,6 +485,9 @@ const he: Dict = {
     tooLarge: "התמונה גדולה מדי (עד 15MB).",
     doorsLabel: "לאילו דלתות להוסיף?",
     pickDoor: "בחרו לפחות דלת אחת.",
+    groupLabel: "קבוצה",
+    groupNone: "ללא קבוצה",
+    pinLabel: "קוד PIN (רשות)",
   },
   staff: {
     title: "חשבונות צוות",

@@ -10,6 +10,7 @@ import {
 import {
   enrollAction,
   listEnrollDoors,
+  listGroups,
   type EnrollState,
   type EnrollDoor,
 } from "./actions";
@@ -29,10 +30,12 @@ export default function EnrollForm() {
   );
   const [mode, setMode] = useState<Mode>("upload");
   const [doors, setDoors] = useState<EnrollDoor[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
   const [photo, setPhoto] = useState<File | null>(null);
 
   useEffect(() => {
     listEnrollDoors().then(setDoors);
+    listGroups().then(setGroups);
   }, []);
   const [preview, setPreview] = useState<string | null>(null);
   const [camError, setCamError] = useState<string | null>(null);
@@ -159,21 +162,22 @@ export default function EnrollForm() {
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-stone-700">
-            {t.enroll.studentId}
+            {t.enroll.groupLabel}
           </span>
-          <input name="studentId" className={input} />
+          <select name="groupName" defaultValue="" className={input}>
+            <option value="">{t.enroll.groupNone}</option>
+            {groups.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-stone-700">
-            {t.enroll.shiur}
+            {t.enroll.pinLabel}
           </span>
-          <input name="shiur" className={input} />
-        </label>
-        <label className="flex flex-col gap-1 sm:col-span-2">
-          <span className="text-sm font-medium text-stone-700">
-            {t.enroll.phone}
-          </span>
-          <input name="phone" className={input} />
+          <input name="pin" inputMode="numeric" className={input} />
         </label>
       </div>
 

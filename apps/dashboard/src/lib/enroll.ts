@@ -49,6 +49,8 @@ export interface EnrollInput {
   studentId?: string | null;
   shiur?: string | null;
   phone?: string | null;
+  groupName?: string | null;
+  pin?: string | null;
   source: EnrolleeSource;
   image: Uint8Array;
   actorId?: string | null;
@@ -121,6 +123,8 @@ async function createEnrollee(
         shiur: input.shiur?.trim() || null,
         phone: input.phone?.trim() || null,
         source: input.source,
+        groupName: input.groupName?.trim() || null,
+        pin: input.pin?.trim() || null,
         photoPath,
         status: "PENDING_PUSH",
         createdById: input.actorId ?? null,
@@ -180,6 +184,8 @@ async function pushToDoors(
         name: enrollee.displayName,
         image: imageBytes,
         scheduleRelay: enrollee.scheduleRelay,
+        group: enrollee.groupName ?? undefined,
+        pin: enrollee.pin ?? undefined,
       });
       await prisma.enrolleeDevice.upsert({
         where: { enrolleeId_deviceId: { enrolleeId: enrollee.id, deviceId: d.id } },

@@ -280,6 +280,8 @@ export class AkuvoxClient {
     image: Uint8Array;
     mime?: "image/jpeg" | "image/png";
     scheduleRelay?: string;
+    group?: string; // device user group; defaults to "Default"
+    pin?: string; // PrivatePIN (door access code)
   }): Promise<void> {
     this.assertManagedId(opts.userId);
     const id = String(opts.userId);
@@ -287,8 +289,9 @@ export class AkuvoxClient {
 
     const post = async (session: string) => {
       const q = new URLSearchParams({
-        UserID: id, name: opts.name, PrivatePIN: "", RFcard: "", Floor: "0",
-        WebRelay: "0", id: "0", faceID: "0", Phone: "", Group: "Default",
+        UserID: id, name: opts.name, PrivatePIN: opts.pin || "", RFcard: "", Floor: "0",
+        WebRelay: "0", id: "0", faceID: "0", Phone: "",
+        Group: opts.group || "Default",
         Priority: "0", DialAccount: "0", relay: sched.split("-")[1] ?? "1",
         Schedule: sched, Schedule1: sched.split("-")[0] ?? "1001",
         faceupload: "1", web: "1", session,
@@ -444,6 +447,34 @@ export class AkuvoxClient {
       for (const r of results) all.push(...((r?.data?.userList ?? []) as DeviceUser[]));
     }
     return all;
+  }
+
+  /** The device's user groups (talmidim, staff, shiurim…) — names for assignment. */
+  async getGroupsViaWeb(): Promise<string[]> {
+    const fetchPage = async (page: number, session: string) => {
+      const q = new URLSearchParams({ page: String(page), session, web: "1" });
+      const res = await fetch(`${this.cfg.baseUrl}/web/usergroup/get?${q}`, {
+        headers: this.cfHeaders(),
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web/usergroup/get.`);
+      return res.json();
+    };
+    let first = await fetchPage(1, await this.ensureSession());
+    if (first?.retcode === -100) {
+      this.webSession = null;
+      first = await fetchPage(1, await this.webLogin());
+    }
+    const session = this.webSession!;
+    const page1: { name: string }[] = first?.data?.groupList ?? [];
+    const names = page1.map((g) => g.name);
+    const sum: number = Number(first?.data?.sum ?? page1.length);
+    const pageSize = page1.length || 1;
+    const totalPages = Math.max(1, Math.ceil(sum / pageSize));
+    for (let p = 2; p <= totalPages; p++) {
+      const body = await fetchPage(p, session);
+      for (const g of (body?.data?.groupList ?? []) as { name: string }[]) names.push(g.name);
+    }
+    return names.map((n) => n.trim()).filter(Boolean);
   }
 
   /** URL of a captured door snapshot (the image itself needs no auth on-device). */

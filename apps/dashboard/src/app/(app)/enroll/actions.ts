@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
+import { deviceClientById } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
@@ -19,11 +20,18 @@ export async function listEnrollDoors(): Promise<EnrollDoor[]> {
   });
 }
 
+/** The device's user groups, for the Add Person group picker. */
+export async function listGroups(): Promise<string[]> {
+  await requireUser();
+  try {
+    return await (await deviceClientById()).getGroupsViaWeb();
+  } catch {
+    return [];
+  }
+}
+
 const schema = z.object({
   displayName: z.string().min(1, "Name is required."),
-  studentId: z.string().optional(),
-  shiur: z.string().optional(),
-  phone: z.string().optional(),
 });
 
 export type EnrollState = {
@@ -40,13 +48,12 @@ export async function enrollAction(
 
   const parsed = schema.safeParse({
     displayName: formData.get("displayName"),
-    studentId: formData.get("studentId") || undefined,
-    shiur: formData.get("shiur") || undefined,
-    phone: formData.get("phone") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? t.login.invalid };
   }
+  const groupName = String(formData.get("groupName") ?? "").trim() || null;
+  const pin = String(formData.get("pin") ?? "").trim() || null;
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
@@ -64,7 +71,9 @@ export async function enrollAction(
 
   try {
     const { enrollee, pushed, deviceError } = await enrollPerson({
-      ...parsed.data,
+      displayName: parsed.data.displayName,
+      groupName,
+      pin,
       source: "MANUAL",
       image: bytes,
       actorId: user.id,
