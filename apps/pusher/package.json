@@ -1,9 +1,9 @@
 {
-  "name": "@ytc/agent",
+  "name": "@ytc/pusher",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "On-site pusher agent. Runs inside the yeshiva LAN, polls the dashboard PushJob queue, writes to the E16C. Holds the device credential locally.",
+  "description": "Cloud push worker (Railway). Drains the PushJob queue and writes to the E16C through the Access-gated Cloudflare tunnel (https://door.<domain>). Replaces the on-site agent.",
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts"

@@ -34,10 +34,14 @@ export interface AkuvoxUser {
 }
 
 export interface AkuvoxConfig {
-  baseUrl: string;        // e.g. "http://10.0.0.215"
+  baseUrl: string;        // LAN "http://10.0.0.215" OR the gated tunnel "https://door.<domain>"
   apiUser: string;        // "admin"
   apiPassword: string;    // the HTTP API password (Doppler / env — never hardcode)
   timeoutMs?: number;
+  // Cloudflare Access service-token headers — required when baseUrl is the
+  // Access-gated tunnel hostname (cloud push). Omit for direct LAN access.
+  cfAccessClientId?: string;
+  cfAccessClientSecret?: string;
 }
 
 export class AkuvoxError extends Error {
@@ -55,6 +59,19 @@ export class AkuvoxClient {
     this.auth =
       "Basic " + Buffer.from(`${cfg.apiUser}:${cfg.apiPassword}`).toString("base64");
     this.timeout = cfg.timeoutMs ?? 8000;
+  }
+
+  /**
+   * Cloudflare Access service-token headers. When the device is reached through
+   * the Access-gated tunnel (baseUrl = https://door.<domain>), every request
+   * must carry these or it is dropped at the edge before reaching the door.
+   * Empty when talking to the LAN IP directly. See PUSH_VIA_TUNNEL.
+   */
+  private cfHeaders(): Record<string, string> {
+    const { cfAccessClientId: id, cfAccessClientSecret: secret } = this.cfg;
+    return id && secret
+      ? { "CF-Access-Client-Id": id, "CF-Access-Client-Secret": secret }
+      : {};
   }
 
   private assertManagedId(id: string | number) {
@@ -77,7 +94,11 @@ export class AkuvoxClient {
     try {
       const res = await fetch(`${this.cfg.baseUrl}/api/${target}/${action}`, {
         method: "POST",
-        headers: { Authorization: this.auth, "Content-Type": "application/json" },
+        headers: {
+          Authorization: this.auth,
+          "Content-Type": "application/json",
+          ...this.cfHeaders(),
+        },
         body: JSON.stringify(data ? { target, action, data } : { target, action }),
         signal: ctrl.signal,
       });
@@ -235,7 +256,12 @@ export class AkuvoxClient {
     try {
       const res = await fetch(
         `${this.cfg.baseUrl}${opts.path ?? "/api/user/set"}?${q.toString()}`,
-        { method: "POST", headers: { Authorization: this.auth }, body: fd, signal: ctrl.signal }
+        {
+          method: "POST",
+          headers: { Authorization: this.auth, ...this.cfHeaders() },
+          body: fd,
+          signal: ctrl.signal,
+        }
       );
       if (res.status === 401) throw new AkuvoxError("401 on face upload — Basic creds rejected; the /web+session transport may be required.");
       if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on face upload.`);
