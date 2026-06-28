@@ -121,6 +121,24 @@ export interface Dict {
     parseError: string;
     empty: string;
   };
+  review: {
+    title: string;
+    subtitle: string;
+    empty: string;
+    from: string;
+    candidates: string;
+    approveAs: string;
+    reject: string;
+    approving: string;
+    rejecting: string;
+    otherId: string;
+    otherIdPlaceholder: string;
+    matchById: string;
+    noFaceWarn: string;
+    rosterMissing: string;
+    approvedMsg: string; // "{name}" "{userId}"
+    noCandidates: string;
+  };
   common: {
     comingSoon: string;
     error: string;
@@ -238,6 +256,25 @@ const en: Dict = {
     parseError: "Couldn't read that file. Use CSV or .xlsx with a header row.",
     empty: "That file has no data rows.",
   },
+  review: {
+    title: "Review queue",
+    subtitle:
+      "Emailed photos matched to the roster. Approve the right person, or reject a bad photo.",
+    empty: "Nothing to review right now.",
+    from: "From",
+    candidates: "Roster matches",
+    approveAs: "Approve as",
+    reject: "Reject",
+    approving: "Approving…",
+    rejecting: "Rejecting…",
+    otherId: "Match by a different student ID",
+    otherIdPlaceholder: "Student ID",
+    matchById: "Approve",
+    noFaceWarn: "Face check failed — review before approving.",
+    rosterMissing: "No roster entry with that student ID.",
+    approvedMsg: "Approved {name} → door ID {userId}.",
+    noCandidates: "No roster matches. Enter a student ID to match.",
+  },
   common: {
     comingSoon: "Coming soon.",
     error: "Something went wrong. Please try again.",
@@ -351,6 +388,24 @@ const he: Dict = {
     imported: "יובאו: {created} נוספו, {updated} עודכנו.",
     parseError: "לא ניתן לקרוא את הקובץ. השתמשו ב‑CSV או ב‑xlsx עם שורת כותרת.",
     empty: "אין שורות נתונים בקובץ.",
+  },
+  review: {
+    title: "תור לאישור",
+    subtitle: "תמונות שהתקבלו במייל והותאמו לרשימה. אשרו את האדם הנכון, או דחו תמונה לא תקינה.",
+    empty: "אין כרגע פריטים לאישור.",
+    from: "מאת",
+    candidates: "התאמות מהרשימה",
+    approveAs: "אישור בתור",
+    reject: "דחייה",
+    approving: "מאשר…",
+    rejecting: "דוחה…",
+    otherId: "התאמה לפי מספר תלמיד אחר",
+    otherIdPlaceholder: "מספר תלמיד",
+    matchById: "אישור",
+    noFaceWarn: "בדיקת הפנים נכשלה — בדקו לפני אישור.",
+    rosterMissing: "אין ברשימה תלמיד עם מספר זה.",
+    approvedMsg: "אושר {name} ← מזהה דלת {userId}.",
+    noCandidates: "אין התאמות ברשימה. הזינו מספר תלמיד להתאמה.",
   },
   common: {
     comingSoon: "בקרוב.",
