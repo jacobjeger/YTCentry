@@ -38,13 +38,14 @@ async function createOnDevice(
   name: string,
   wantPin: string,
   pinIsCustom: boolean,
+  scheduleRelay?: string,
 ): Promise<string> {
   const device = await prisma.device.findUniqueOrThrow({ where: { id: deviceId } });
   const client = clientForDevice(device);
   let pin = wantPin;
   for (let attempt = 0; attempt < 8; attempt++) {
     try {
-      await client.createPinUser({ userId, name, pin });
+      await client.createPinUser({ userId, name, pin, scheduleRelay });
       return pin;
     } catch (e) {
       if (e instanceof AkuvoxPinTakenError && !pinIsCustom) {
@@ -57,6 +58,10 @@ async function createOnDevice(
   throw new AkuvoxPinTakenError();
 }
 
+function yyyymmdd(d: Date): string {
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export async function createTempPin(opts: {
   deviceId: string;
   label: string;
@@ -64,13 +69,55 @@ export async function createTempPin(opts: {
   startsAt?: Date | null;
   pin?: string;
   createdById?: string | null;
+  recurring?: { weekly: string; timeBegin: string; timeEnd: string };
 }): Promise<{ pin: string; userId: number; expiresAt: Date; deferred: boolean }> {
-  await prisma.device.findUniqueOrThrow({ where: { id: opts.deviceId } });
+  const device = await prisma.device.findUniqueOrThrow({ where: { id: opts.deviceId } });
   const userId = await allocateTempUserId();
   const name = guestName(opts.label);
   const pinIsCustom = !!opts.pin;
-  const deferred = !!opts.startsAt && opts.startsAt.getTime() > Date.now();
 
+  // RECURRING: create a device schedule for the weekly window, then a PIN user
+  // bound to it. Active immediately (the device enforces the recurring window);
+  // removed when expiresAt (the until-date) passes.
+  if (opts.recurring) {
+    const client = clientForDevice(device);
+    const sched = await client.createScheduleWeb({
+      name: `Guest ${opts.label} ${userId}`.slice(0, 30),
+      weekly: opts.recurring.weekly,
+      timeBegin: opts.recurring.timeBegin,
+      timeEnd: opts.recurring.timeEnd,
+      dayBegin: yyyymmdd(opts.startsAt ?? new Date()),
+      dayEnd: yyyymmdd(opts.expiresAt),
+    });
+    let pin = opts.pin || randomPin();
+    try {
+      pin = await createOnDevice(opts.deviceId, userId, name, pin, pinIsCustom, `${sched.scheduleID}-1`);
+    } catch (e) {
+      // roll back the schedule if the user couldn't be created
+      await client.deleteScheduleWeb(sched.id).catch(() => {});
+      throw e;
+    }
+    await prisma.tempPin.create({
+      data: {
+        deviceId: opts.deviceId,
+        akuvoxUserId: userId,
+        label: opts.label,
+        pin,
+        startsAt: opts.startsAt ?? null,
+        activatedAt: new Date(),
+        expiresAt: opts.expiresAt,
+        weekly: opts.recurring.weekly,
+        timeBegin: opts.recurring.timeBegin,
+        timeEnd: opts.recurring.timeEnd,
+        scheduleId: sched.id,
+        createdById: opts.createdById ?? null,
+      },
+    });
+    await upsertCacheRow({ deviceId: opts.deviceId, userID: String(userId), name, hasFace: false, pin });
+    return { pin, userId, expiresAt: opts.expiresAt, deferred: false };
+  }
+
+  const deferred = !!opts.startsAt && opts.startsAt.getTime() > Date.now();
   let pin = opts.pin || randomPin();
   if (!deferred) {
     // Active now — create on the door immediately.
@@ -150,6 +197,8 @@ async function deleteTempUserSafely(tp: TempPin): Promise<void> {
   if (!name.includes(tp.label) && !name.startsWith("Guest")) return; // not ours — abort
   await client.delAnyUserWeb(tp.akuvoxUserId);
   await removeCacheRow(tp.deviceId, String(tp.akuvoxUserId));
+  // also remove the recurring schedule we created for it
+  if (tp.scheduleId) await client.deleteScheduleWeb(tp.scheduleId).catch(() => {});
 }
 
 export async function revokeTempPin(id: string): Promise<void> {

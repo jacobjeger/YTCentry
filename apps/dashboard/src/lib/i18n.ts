@@ -64,6 +64,17 @@ export interface Dict {
     badStart: string;
     scheduled: string;
     startsAtLabel: string; // "{t}"
+    mode: string;
+    once: string;
+    repeat: string;
+    days: string;
+    timeFrom: string;
+    timeTo: string;
+    until: string;
+    dayLetters: string; // comma-separated Sun..Sat
+    needDays: string;
+    recurringBadge: string; // "{days} {from}-{to}"
+    startNow: string;
   };
   account: {
     title: string;
@@ -386,6 +397,17 @@ const en: Dict = {
     badStart: "The start must be before the end.",
     scheduled: "Scheduled",
     startsAtLabel: "Starts {t}",
+    mode: "When",
+    once: "One-time",
+    repeat: "Repeating",
+    days: "Days",
+    timeFrom: "From",
+    timeTo: "To",
+    until: "Until",
+    dayLetters: "S,M,T,W,T,F,S",
+    needDays: "Pick at least one day.",
+    recurringBadge: "{days} {from}–{to}",
+    startNow: "Start now",
   },
   account: {
     title: "Your account",
@@ -717,6 +739,17 @@ const he: Dict = {
     badStart: "זמן ההתחלה חייב להיות לפני הסיום.",
     scheduled: "מתוזמן",
     startsAtLabel: "מתחיל {t}",
+    mode: "מתי",
+    once: "חד פעמי",
+    repeat: "חוזר",
+    days: "ימים",
+    timeFrom: "משעה",
+    timeTo: "עד שעה",
+    until: "עד תאריך",
+    dayLetters: "א,ב,ג,ד,ה,ו,ש",
+    needDays: "בחרו לפחות יום אחד.",
+    recurringBadge: "{days} {from}–{to}",
+    startNow: "התחל עכשיו",
   },
   account: {
     title: "החשבון שלי",

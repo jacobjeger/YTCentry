@@ -23,6 +23,9 @@ export interface TempPinRow {
   expiresAt: string;
   active: boolean; // already created on the door (vs scheduled to start later)
   userId: number;
+  weekly: string | null; // recurring weekdays (Sun=0..Sat=6) or null
+  timeBegin: string | null;
+  timeEnd: string | null;
 }
 
 export async function listTempPinsUI(): Promise<TempPinRow[]> {
@@ -41,6 +44,9 @@ export async function listTempPinsUI(): Promise<TempPinRow[]> {
     expiresAt: p.expiresAt.toISOString(),
     active: p.activatedAt != null,
     userId: p.akuvoxUserId,
+    weekly: p.weekly,
+    timeBegin: p.timeBegin,
+    timeEnd: p.timeEnd,
   }));
 }
 
@@ -72,14 +78,38 @@ export async function createTempPinAction(
     return { error: t.temp.badPin };
   }
 
-  // datetime-local strings parse as LOCAL time, which is what staff expect.
-  const startsAt = startsRaw ? new Date(startsRaw) : null;
-  const expiresAt = endsRaw ? new Date(endsRaw) : new Date(Date.now() + 12 * 3600000);
-  if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
-    return { error: t.temp.endInPast };
-  }
-  if (startsAt && (isNaN(startsAt.getTime()) || startsAt.getTime() >= expiresAt.getTime())) {
-    return { error: t.temp.badStart };
+  const mode = String(formData.get("mode") ?? "once");
+
+  let startsAt: Date | null = null;
+  let expiresAt: Date;
+  let recurring: { weekly: string; timeBegin: string; timeEnd: string } | undefined;
+
+  if (mode === "repeat") {
+    // Recurring weekly: chosen days + daily time window + until-date.
+    const weekly = formData.getAll("days").map(String).sort().join("");
+    const timeBegin = String(formData.get("timeFrom") ?? "").trim();
+    const timeEnd = String(formData.get("timeTo") ?? "").trim();
+    const untilRaw = String(formData.get("until") ?? "").trim();
+    if (!weekly) return { error: t.temp.needDays };
+    if (!/^\d{2}:\d{2}$/.test(timeBegin) || !/^\d{2}:\d{2}$/.test(timeEnd)) {
+      return { error: t.temp.endInPast };
+    }
+    // until defaults to one year out if blank
+    expiresAt = untilRaw ? new Date(`${untilRaw}T23:59`) : new Date(Date.now() + 365 * 24 * 3600000);
+    if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+      return { error: t.temp.endInPast };
+    }
+    recurring = { weekly, timeBegin, timeEnd };
+  } else {
+    // One-time: datetime-local strings parse as LOCAL time.
+    startsAt = startsRaw ? new Date(startsRaw) : null;
+    expiresAt = endsRaw ? new Date(endsRaw) : new Date(Date.now() + 12 * 3600000);
+    if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+      return { error: t.temp.endInPast };
+    }
+    if (startsAt && (isNaN(startsAt.getTime()) || startsAt.getTime() >= expiresAt.getTime())) {
+      return { error: t.temp.badStart };
+    }
   }
 
   try {
@@ -88,6 +118,7 @@ export async function createTempPinAction(
       label,
       startsAt,
       expiresAt,
+      recurring,
       pin: customPin || undefined,
       createdById: user.id,
     });

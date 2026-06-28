@@ -27,10 +27,15 @@ function countdown(iso: string): string {
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
-/** now + 12h as a local `YYYY-MM-DDTHH:mm` for the datetime-local default. */
-function defaultEnd(): string {
-  const d = new Date(Date.now() + 12 * 3600000);
+/** A Date as a local `YYYY-MM-DDTHH:mm` for datetime-local inputs. */
+function localDT(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function localDate(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function defaultEnd(): string {
+  return localDT(new Date(Date.now() + 12 * 3600000));
 }
 /** Local 24-hour "DD/MM HH:mm" for showing a start time. */
 function fmtStart(iso: string): string {
@@ -43,6 +48,17 @@ export default function TempPinsManager() {
   const [pins, setPins] = useState<TempPinRow[]>([]);
   const [doors, setDoors] = useState<{ id: string; name: string }[]>([]);
   const [, tick] = useState(0);
+  const [mode, setMode] = useState<"once" | "repeat">("once");
+  const [startVal, setStartVal] = useState("");
+  const [endVal, setEndVal] = useState(defaultEnd());
+  const [days, setDays] = useState<Set<number>>(new Set());
+  const dayLetters = t.temp.dayLetters.split(",");
+  const toggleDay = (i: number) =>
+    setDays((p) => {
+      const n = new Set(p);
+      n.has(i) ? n.delete(i) : n.add(i);
+      return n;
+    });
   const [state, action, pending] = useActionState<TempState, FormData>(
     createTempPinAction,
     {},
@@ -92,24 +108,107 @@ export default function TempPinsManager() {
             </select>
           </label>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-stone-700">{t.temp.starts}</span>
-            {/* lang=en-GB forces 24-hour time (the scanner uses 24h) */}
-            <input name="startsAt" type="datetime-local" lang="en-GB" className={input} />
-            <span className="text-xs text-stone-400">{t.temp.startsHint}</span>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-stone-700">{t.temp.ends}</span>
-            <input
-              name="endsAt"
-              type="datetime-local"
-              lang="en-GB"
-              defaultValue={defaultEnd()}
-              className={input}
-            />
-          </label>
+        <input type="hidden" name="mode" value={mode} />
+        {/* Mode toggle */}
+        <div className="flex gap-2">
+          {(["once", "repeat"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`rounded-lg px-4 py-1.5 text-sm font-medium border ${
+                mode === m
+                  ? "border-bronze bg-bronze/10 text-bronze-dark"
+                  : "border-stone-300 text-stone-600 hover:bg-stone-50"
+              }`}
+            >
+              {m === "once" ? t.temp.once : t.temp.repeat}
+            </button>
+          ))}
         </div>
+
+        {mode === "once" ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-stone-700">{t.temp.starts}</span>
+                {/* lang=en-GB forces 24-hour time (the scanner uses 24h) */}
+                <input
+                  name="startsAt"
+                  type="datetime-local"
+                  lang="en-GB"
+                  value={startVal}
+                  onChange={(e) => setStartVal(e.target.value)}
+                  className={input}
+                />
+                <span className="text-xs text-stone-400">{t.temp.startsHint}</span>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-stone-700">{t.temp.ends}</span>
+                <input
+                  name="endsAt"
+                  type="datetime-local"
+                  lang="en-GB"
+                  value={endVal}
+                  onChange={(e) => setEndVal(e.target.value)}
+                  className={input}
+                />
+              </label>
+            </div>
+            {/* Quick shortcuts */}
+            <div className="flex flex-wrap gap-2 text-xs">
+              <button type="button" onClick={() => setStartVal("")}
+                className="rounded-full border border-stone-300 px-3 py-1 hover:bg-stone-50">
+                {t.temp.startNow}
+              </button>
+              {([["+2h", 2 / 24], ["+4h", 4 / 24], ["+1d", 1], ["+1w", 7]] as const).map(
+                ([lbl, d]) => (
+                  <button key={lbl} type="button"
+                    onClick={() => { setStartVal(""); setEndVal(localDT(new Date(Date.now() + d * 86400000))); }}
+                    className="rounded-full border border-stone-300 px-3 py-1 hover:bg-stone-50">
+                    {lbl}
+                  </button>
+                ),
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <span className="text-sm font-medium text-stone-700">{t.temp.days}</span>
+              <div className="flex gap-1.5 mt-1">
+                {dayLetters.map((ltr, i) => (
+                  <button key={i} type="button" onClick={() => toggleDay(i)}
+                    className={`w-9 h-9 rounded-full text-sm font-medium border ${
+                      days.has(i)
+                        ? "border-bronze bg-bronze text-white"
+                        : "border-stone-300 text-stone-600 hover:bg-stone-50"
+                    }`}>
+                    {ltr}
+                  </button>
+                ))}
+                {[...days].map((d) => (
+                  <input key={d} type="hidden" name="days" value={d} />
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-stone-700">{t.temp.timeFrom}</span>
+                <input name="timeFrom" type="time" lang="en-GB" defaultValue="07:00" className={input} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-stone-700">{t.temp.timeTo}</span>
+                <input name="timeTo" type="time" lang="en-GB" defaultValue="09:00" className={input} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-stone-700">{t.temp.until}</span>
+                <input name="until" type="date" lang="en-GB"
+                  defaultValue={localDate(new Date(Date.now() + 365 * 86400000))} className={input} />
+              </label>
+            </div>
+          </div>
+        )}
         <label className="flex flex-col gap-1 max-w-xs">
           <span className="text-sm font-medium text-stone-700">{t.temp.customPin}</span>
           <input
@@ -176,8 +275,16 @@ export default function TempPinsManager() {
                   >
                     {p.pin}
                   </button>
-                  <div className="text-sm w-32 text-end">
-                    {!p.active && p.startsAt ? (
+                  <div className="text-sm w-36 text-end">
+                    {p.weekly ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                        {fmt(t.temp.recurringBadge, {
+                          days: p.weekly.split("").map((d) => t.temp.dayLetters.split(",")[Number(d)]).join(""),
+                          from: p.timeBegin ?? "",
+                          to: p.timeEnd ?? "",
+                        })}
+                      </span>
+                    ) : !p.active && p.startsAt ? (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
                         {fmt(t.temp.startsAtLabel, { t: fmtStart(p.startsAt) })}
                       </span>

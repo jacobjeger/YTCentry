@@ -605,6 +605,127 @@ export class AkuvoxClient {
     return names.map((n) => n.trim()).filter(Boolean);
   }
 
+  /**
+   * Read the device's schedules via /web. Note the device exposes TWO ids:
+   *  - `scheduleID` — used to ASSIGN a user (their Schedule field = "<scheduleID>-1")
+   *  - `id` — the internal row id, used to DELETE the schedule
+   */
+  async getSchedulesViaWeb(): Promise<{ id: number; scheduleID: number; name: string }[]> {
+    const fetchPage = async (page: number, session: string) => {
+      const q = new URLSearchParams({ page: String(page), session, web: "1" });
+      const res = await fetch(`${this.cfg.baseUrl}/web/schedule/get?${q}`, {
+        headers: this.cfHeaders(),
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on /web/schedule/get.`);
+      return res.json();
+    };
+    let first = await fetchPage(1, await this.ensureSession());
+    if (first?.retcode === -100) {
+      this.webSession = null;
+      first = await fetchPage(1, await this.webLogin());
+    }
+    const session = this.webSession!;
+    const out: { id: number; scheduleID: number; name: string }[] = [];
+    const take = (list: Record<string, unknown>[]) => {
+      for (const s of list) {
+        out.push({
+          id: Number(s.id ?? 0),
+          scheduleID: Number(s.scheduleID ?? s.ScheduleID ?? 0),
+          name: String(s.name ?? s.Name ?? "").trim(),
+        });
+      }
+    };
+    const page1 = (first?.data?.scheduleList ?? []) as Record<string, unknown>[];
+    take(page1);
+    const sum = Number(first?.data?.sum ?? page1.length);
+    const pageSize = page1.length || 1;
+    const totalPages = Math.max(1, Math.ceil(sum / pageSize));
+    for (let p = 2; p <= totalPages; p++) {
+      const body = await fetchPage(p, session);
+      take((body?.data?.scheduleList ?? []) as Record<string, unknown>[]);
+    }
+    return out.filter((s) => s.scheduleID > 0);
+  }
+
+  /**
+   * Create a weekly recurring schedule and return its new ScheduleID. CONFIRMED
+   * add format from capture: POST /web {target:schedule, action:add,
+   * data:{name, mode:"0", dayrange_begin, dayrange_end, weekly, time_begin,
+   * time_end}}. The id isn't in the add response, so we read the list back and
+   * match by name.
+   * @param weekly digits of active weekdays, Sun=0..Sat=6, e.g. "2" = Tuesday.
+   */
+  async createScheduleWeb(opts: {
+    name: string;
+    weekly: string; // e.g. "2" (Tue) or "0123456" (every day)
+    timeBegin: string; // "HH:mm"
+    timeEnd: string; // "HH:mm"
+    dayBegin: string; // "YYYYMMDD"
+    dayEnd: string; // "YYYYMMDD"
+  }): Promise<{ scheduleID: number; id: number }> {
+    const post = async (session: string) => {
+      const res = await fetch(`${this.cfg.baseUrl}/web`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json;charset=UTF-8", ...this.cfHeaders() },
+        body: JSON.stringify({
+          target: "schedule",
+          action: "add",
+          data: {
+            name: opts.name,
+            mode: "0",
+            dayrange_begin: opts.dayBegin,
+            dayrange_end: opts.dayEnd,
+            weekly: opts.weekly,
+            time_begin: opts.timeBegin,
+            time_end: opts.timeEnd,
+          },
+          session,
+          web: "1",
+        }),
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on schedule add.`);
+      return res.json();
+    };
+    let body = await post(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await post(await this.webLogin());
+    }
+    const ok = String(body?.message ?? "").toLowerCase() === "ok";
+    if (!ok) throw new AkuvoxError("Device rejected the schedule.", body);
+    // read back to resolve the new schedule by name (newest match wins) — we need
+    // BOTH ids: scheduleID for user assignment, id for later deletion.
+    const list = await this.getSchedulesViaWeb();
+    const match = list.filter((s) => s.name === opts.name);
+    if (match.length === 0) throw new AkuvoxError("Schedule created but not found on read-back.");
+    const newest = match[match.length - 1]!;
+    return { scheduleID: newest.scheduleID, id: newest.id };
+  }
+
+  /** Delete a schedule by its INTERNAL id (the `id` field, NOT scheduleID). */
+  async deleteScheduleWeb(internalId: number | string): Promise<void> {
+    const post = async (session: string) => {
+      const res = await fetch(`${this.cfg.baseUrl}/web`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json;charset=UTF-8", ...this.cfHeaders() },
+        body: JSON.stringify({
+          target: "schedule",
+          action: "del",
+          data: { type: "select", ids: [String(internalId)] },
+          session,
+          web: "1",
+        }),
+      });
+      if (!res.ok) throw new AkuvoxError(`HTTP ${res.status} on schedule del.`);
+      return res.json();
+    };
+    let body = await post(await this.ensureSession());
+    if (body?.retcode === -100) {
+      this.webSession = null;
+      body = await post(await this.webLogin());
+    }
+  }
+
   /** URL of a captured door snapshot (the image itself needs no auth on-device). */
   doorPictureUrl(picture: string): string {
     return `${this.cfg.baseUrl}/Image/DoorPicture/${encodeURIComponent(picture)}`;

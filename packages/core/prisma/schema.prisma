@@ -135,6 +135,11 @@ model TempPin {
   startsAt     DateTime? // when it should become active (null = immediately)
   activatedAt  DateTime? // when the device user was actually created (null = not yet)
   expiresAt    DateTime
+  // Recurring (weekly) access via a device Schedule. Null = one-time.
+  weekly       String?   // active weekdays, Sun=0..Sat=6, e.g. "2" or "0123456"
+  timeBegin    String?   // "HH:mm" daily window start
+  timeEnd      String?   // "HH:mm" daily window end
+  scheduleId   Int?      // device schedule INTERNAL id (for deletion)
   createdById  String?
   createdAt    DateTime  @default(now())
 
