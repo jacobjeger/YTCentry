@@ -260,7 +260,7 @@ export default function TempPinsManager() {
             {pins.map((p) => {
               const left = countdown(p.expiresAt);
               return (
-                <div key={p.id} className="flex items-center gap-4 px-4 py-3">
+                <div key={p.id} className="flex items-center gap-4 px-4 py-3 hover:bg-stone-50">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium">{p.label}</div>
                     <div className="text-xs text-stone-400">

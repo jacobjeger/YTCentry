@@ -105,10 +105,12 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="rounded-xl border border-stone-200 bg-white p-5 hover:shadow-sm transition-shadow"
+      className={`rounded-xl border bg-white p-5 transition-all hover:shadow-md hover:-translate-y-0.5 ${
+        warn && value > 0 ? "border-red-200 bg-red-50/50" : "border-stone-200"
+      }`}
     >
       <div
-        className={`text-3xl font-semibold ${warn ? "text-red-600" : "text-stone-800"}`}
+        className={`text-3xl font-semibold ${warn && value > 0 ? "text-red-600" : "text-stone-800"}`}
       >
         {value}
       </div>

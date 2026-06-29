@@ -100,7 +100,7 @@ export default function SchedulesManager() {
         ) : (
           <div className="rounded-xl border border-stone-200 bg-white overflow-hidden divide-y divide-stone-100">
             {rows.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+              <div key={s.id} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50">
                 <div className="flex-1">
                   <span className="font-medium">{s.name}</span>
                   <span className="text-xs text-stone-400 ms-2">#{s.scheduleID}</span>
