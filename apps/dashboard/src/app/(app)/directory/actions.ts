@@ -208,6 +208,53 @@ export async function savePersonEdit(
   return { ok: "saved" };
 }
 
+/** Update ANY person's photo directly from the Directory (managed or legacy). */
+export async function updatePhotoOnDoor(
+  _prev: DirState,
+  formData: FormData,
+): Promise<DirState> {
+  const user = await requireUser();
+  const t = getDictionary(await getLocale());
+  const userID = String(formData.get("userID") ?? "").trim();
+  const deviceId = String(formData.get("deviceId") ?? "") || undefined;
+  const file = formData.get("photo");
+  if (!userID || !(file instanceof File) || file.size === 0) return { error: t.common.error };
+
+  const face = await validateFace(new Uint8Array(await file.arrayBuffer()));
+  if (!face.ok || !face.image) return { error: face.reason ?? t.common.error };
+
+  try {
+    const client = await deviceClientById(deviceId);
+    await client.replaceFaceWeb(userID, face.image);
+  } catch (e) {
+    return { error: describeDeviceError(e, "update photo") };
+  }
+
+  // For people we manage, also keep our stored photo + record in sync.
+  const n = Number(userID);
+  if (n >= ID_BAND_START) {
+    const e = await prisma.enrollee.findFirst({ where: { akuvoxUserId: n } });
+    if (e) {
+      const path = photoKey(e.displayName, e.akuvoxUserId);
+      await putPhoto(path, face.image, "image/jpeg");
+      await prisma.enrollee.update({
+        where: { id: e.id },
+        data: { photoPath: path, status: "PUSHED", lastError: null },
+      });
+    }
+  }
+  const did = await resolveDeviceId(deviceId);
+  if (did) {
+    await prisma.deviceUserCache.updateMany({
+      where: { deviceId: did, userID },
+      data: { hasFace: true },
+    });
+  }
+  await audit({ actorId: user.id, action: "face.replace", targetType: "DeviceUser", targetId: userID });
+  revalidatePath("/directory");
+  return { ok: "ok" };
+}
+
 /** Delete ANY user from the door (admin device management; confirmed in the UI). */
 export async function deleteFromDoor(formData: FormData) {
   const user = await requireUser();

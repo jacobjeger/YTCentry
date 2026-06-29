@@ -7,7 +7,7 @@ import {
   listDoors,
   deleteFromDoor,
   repushEnrollee,
-  replacePhoto,
+  updatePhotoOnDoor,
   type DirRow,
   type DirState,
   type DoorOption,
@@ -270,8 +270,8 @@ function Row({
   const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceFormRef = useRef<HTMLFormElement>(null);
-  const [, replaceAction, replacing] = useActionState<DirState, FormData>(
-    replacePhoto,
+  const [updateState, replaceAction, replacing] = useActionState<DirState, FormData>(
+    updatePhotoOnDoor,
     {},
   );
 
@@ -323,42 +323,43 @@ function Row({
             {t.directory.edit}
           </button>
           {r.managed && r.enrolleeId ? (
-            <>
-              <a
-                href={`/api/enrollee/${r.enrolleeId}/photo?download=1`}
-                className="text-xs text-stone-600 hover:underline"
-              >
-                {t.directory.download}
-              </a>
-              {r.status === "PUSH_FAILED" ? (
-                <form action={repushEnrollee}>
-                  <input type="hidden" name="id" value={r.enrolleeId} />
-                  <button className="text-xs text-bronze-dark hover:underline">
-                    {t.directory.repush}
-                  </button>
-                </form>
-              ) : null}
-              <form ref={replaceFormRef} action={replaceAction}>
-                <input type="hidden" name="id" value={r.enrolleeId} />
-                <input
-                  ref={fileRef}
-                  type="file"
-                  name="photo"
-                  accept="image/jpeg,image/png"
-                  className="hidden"
-                  onChange={() => replaceFormRef.current?.requestSubmit()}
-                />
-                <button
-                  type="button"
-                  disabled={replacing}
-                  onClick={() => fileRef.current?.click()}
-                  className="text-xs text-stone-600 hover:underline disabled:opacity-50"
-                >
-                  {t.directory.replacePhoto}
-                </button>
-              </form>
-            </>
+            <a
+              href={`/api/enrollee/${r.enrolleeId}/photo?download=1`}
+              className="text-xs text-stone-600 hover:underline"
+            >
+              {t.directory.download}
+            </a>
           ) : null}
+          {r.managed && r.enrolleeId && r.status === "PUSH_FAILED" ? (
+            <form action={repushEnrollee}>
+              <input type="hidden" name="id" value={r.enrolleeId} />
+              <button className="text-xs text-bronze-dark hover:underline">
+                {t.directory.repush}
+              </button>
+            </form>
+          ) : null}
+          {/* Update photo — available for EVERYONE on the door (managed + legacy) */}
+          <form ref={replaceFormRef} action={replaceAction}>
+            <input type="hidden" name="userID" value={r.userID} />
+            <input type="hidden" name="deviceId" value={deviceId} />
+            <input
+              ref={fileRef}
+              type="file"
+              name="photo"
+              accept="image/*"
+              className="hidden"
+              onChange={() => replaceFormRef.current?.requestSubmit()}
+            />
+            <button
+              type="button"
+              disabled={replacing}
+              onClick={() => fileRef.current?.click()}
+              className="text-xs text-stone-600 hover:underline disabled:opacity-50"
+              title={updateState.error ?? undefined}
+            >
+              {replacing ? t.directory.syncing : t.directory.replacePhoto}
+            </button>
+          </form>
 
           <form
             action={deleteFromDoor}
