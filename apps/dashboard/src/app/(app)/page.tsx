@@ -7,15 +7,21 @@ import { getDictionary, fmt } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 async function stats() {
-  const [needsReview, pushFailed, queued, enrolled] = await Promise.all([
+  const primary = await prisma.device.findFirst({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true },
+  });
+  const [people, doors, needsReview, guests, pushFailed] = await Promise.all([
+    primary ? prisma.deviceUserCache.count({ where: { deviceId: primary.id } }) : 0,
+    prisma.device.count({ where: { active: true } }),
     prisma.photoSubmission.count({
       where: { status: { in: ["RECEIVED", "NEEDS_MATCH", "MATCHED"] } },
     }),
+    prisma.tempPin.count(),
     prisma.enrollee.count({ where: { status: "PUSH_FAILED" } }),
-    prisma.pushJob.count({ where: { status: { in: ["QUEUED", "CLAIMED"] } } }),
-    prisma.enrollee.count({ where: { status: "PUSHED" } }),
   ]);
-  return { needsReview, pushFailed, queued, enrolled };
+  return { people, doors, needsReview, guests, pushFailed };
 }
 
 export default async function Home() {
@@ -33,19 +39,23 @@ export default async function Home() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={t.home.enrolled} value={s.enrolled} href="/directory" />
+        <StatCard label={t.home.peopleOnDoor} value={s.people} href="/directory" />
+        <StatCard label={t.home.doors} value={s.doors} href="/directory" />
         <StatCard
           label={t.home.awaitingReview}
           value={s.needsReview}
           href="/review"
         />
-        <StatCard label={t.home.inQueue} value={s.queued} href="/directory" />
-        <StatCard
-          label={t.home.pushFailed}
-          value={s.pushFailed}
-          href="/directory"
-          warn={s.pushFailed > 0}
-        />
+        {s.pushFailed > 0 ? (
+          <StatCard
+            label={t.home.pushFailed}
+            value={s.pushFailed}
+            href="/directory"
+            warn
+          />
+        ) : (
+          <StatCard label={t.home.guestCodes} value={s.guests} href="/temp-pins" />
+        )}
       </div>
 
       <div>

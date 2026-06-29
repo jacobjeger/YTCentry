@@ -131,6 +131,9 @@ export interface Dict {
     awaitingReview: string;
     inQueue: string;
     pushFailed: string;
+    peopleOnDoor: string;
+    doors: string;
+    guestCodes: string;
     addTitle: string;
     addBody: string;
     reviewTitle: string;
@@ -493,6 +496,9 @@ const en: Dict = {
     awaitingReview: "Awaiting review",
     inQueue: "In push queue",
     pushFailed: "Push failed",
+    peopleOnDoor: "People on the door",
+    doors: "Doors",
+    guestCodes: "Active guest codes",
     addTitle: "Add a person",
     addBody: "Type a name, snap or upload a photo, and send them to the door.",
     reviewTitle: "Review photos",
@@ -862,6 +868,9 @@ const he: Dict = {
     awaitingReview: "ממתינים לאישור",
     inQueue: "בתור לשליחה",
     pushFailed: "שליחה נכשלה",
+    peopleOnDoor: "אנשים על הדלת",
+    doors: "דלתות",
+    guestCodes: "קודי אורח פעילים",
     addTitle: "הוספת אדם",
     addBody: "הקלידו שם, צלמו או העלו תמונה, ושלחו אותו לדלת.",
     reviewTitle: "אישור תמונות",
