@@ -43,8 +43,26 @@ export async function pollDoorSnapshots(
     (r) => r.type === FACE_TYPE && r.status === STATUS_DENIED,
   );
 
-  let created = 0;
+  // Dedup repeat scans: the same person retrying produces a burst of denials a
+  // few seconds apart. Collapse anything within DEDUP_MS of the previous kept
+  // scan so one person's repeated attempts become a single review item.
+  const DEDUP_MS = Number(process.env.DENIED_DEDUP_MS ?? 120_000);
+  const ts = (r: DoorLogRecord): number => {
+    const d = Date.parse(`${r.date}T${r.time}`);
+    return Number.isNaN(d) ? 0 : d;
+  };
+  denied.sort((a, b) => ts(a) - ts(b));
+  const kept: DoorLogRecord[] = [];
+  let lastKept = 0;
   for (const r of denied) {
+    const t = ts(r);
+    if (t && lastKept && t - lastKept < DEDUP_MS) continue; // within a burst → skip
+    kept.push(r);
+    if (t) lastKept = t;
+  }
+
+  let created = 0;
+  for (const r of kept) {
     if (!r.picture) continue;
     const messageId = `door-${r.id}`;
     const existing = await prisma.photoSubmission.findUnique({

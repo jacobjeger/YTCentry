@@ -24,9 +24,13 @@ export interface ReviewItem {
 export default function ReviewCard({
   item,
   groups,
+  selected,
+  onToggle,
 }: {
   item: ReviewItem;
   groups: string[];
+  selected?: boolean;
+  onToggle?: () => void;
 }) {
   const t = useT();
   const [aState, approveAction, aPending] = useActionState<ReviewState, FormData>(
@@ -50,7 +54,20 @@ export default function ReviewCard({
   }
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-4 flex flex-col sm:flex-row gap-4">
+    <div
+      className={`rounded-xl border p-4 flex flex-col sm:flex-row gap-4 ${
+        selected ? "border-bronze bg-bronze/5" : "border-stone-200 bg-white"
+      }`}
+    >
+      {onToggle ? (
+        <input
+          type="checkbox"
+          checked={!!selected}
+          onChange={onToggle}
+          className="accent-bronze mt-1 self-start"
+          aria-label={t.review.selectAll}
+        />
+      ) : null}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={item.photoUrl}

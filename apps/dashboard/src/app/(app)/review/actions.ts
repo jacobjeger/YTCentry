@@ -234,3 +234,23 @@ export async function rejectSubmission(formData: FormData) {
   });
   revalidatePath("/review");
 }
+
+/** Reject several submissions at once (bulk clear from the Review Queue). */
+export async function rejectManySubmissions(ids: string[]): Promise<number> {
+  const user = await requireUser();
+  const clean = ids.map((s) => String(s)).filter(Boolean);
+  if (clean.length === 0) return 0;
+  const res = await prisma.photoSubmission.updateMany({
+    where: { id: { in: clean }, status: { in: ["RECEIVED", "NEEDS_MATCH", "MATCHED"] } },
+    data: { status: "REJECTED", reviewedById: user.id, reviewedAt: new Date() },
+  });
+  await audit({
+    actorId: user.id,
+    action: "submission.reject",
+    targetType: "PhotoSubmission",
+    targetId: "bulk",
+    meta: { count: res.count },
+  });
+  revalidatePath("/review");
+  return res.count;
+}

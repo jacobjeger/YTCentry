@@ -275,6 +275,8 @@ export interface Dict {
     updateBtn: string;
     updatedMsg: string;
     total: string;
+    selectAll: string;
+    rejectSelected: string;
   };
   directory: {
     title: string;
@@ -646,6 +648,8 @@ const en: Dict = {
     updateBtn: "Use this photo",
     updatedMsg: "Updated #{id}.",
     total: "{n} waiting",
+    selectAll: "Select all",
+    rejectSelected: "Reject {n}",
     submissionAlt: "Submitted photo",
   },
   directory: {
@@ -1015,6 +1019,8 @@ const he: Dict = {
     updateBtn: "השתמש בתמונה זו",
     updatedMsg: "עודכן #{id}.",
     total: "{n} ממתינות",
+    selectAll: "בחר הכל",
+    rejectSelected: "דחה {n}",
     submissionAlt: "תמונה שהוגשה",
   },
   directory: {
