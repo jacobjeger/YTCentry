@@ -274,6 +274,7 @@ export interface Dict {
     updateSearch: string;
     updateBtn: string;
     updatedMsg: string;
+    total: string;
   };
   directory: {
     title: string;
@@ -644,6 +645,7 @@ const en: Dict = {
     updateSearch: "Search a name or ID\u2026",
     updateBtn: "Use this photo",
     updatedMsg: "Updated #{id}.",
+    total: "{n} waiting",
     submissionAlt: "Submitted photo",
   },
   directory: {
@@ -1012,6 +1014,7 @@ const he: Dict = {
     updateSearch: "חיפוש שם או מספר\u2026",
     updateBtn: "השתמש בתמונה זו",
     updatedMsg: "עודכן #{id}.",
+    total: "{n} ממתינות",
     submissionAlt: "תמונה שהוגשה",
   },
   directory: {
