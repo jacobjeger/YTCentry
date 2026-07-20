@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YTC Entry</string>
+
+    <!-- Login -->
+    <string name="login_title">Sign in</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="server_label">Server address</string>
+    <string name="advanced_server">Server settings</string>
+    <string name="sign_in">Sign in</string>
+    <string name="signing_in">Signing in…</string>
+    <string name="login_failed">Wrong email or password.</string>
+    <string name="server_unreachable">Can\'t reach the server. Check the address and your connection.</string>
+
+    <!-- Tabs -->
+    <string name="tab_add">Add</string>
+    <string name="tab_roster">Roster</string>
+    <string name="tab_temp">Temp PIN</string>
+    <string name="logout">Sign out</string>
+
+    <!-- Add Person -->
+    <string name="add_title">Add person</string>
+    <string name="name">Name</string>
+    <string name="group">Group</string>
+    <string name="group_none">No group</string>
+    <string name="pin_optional">PIN (optional)</string>
+    <string name="door">Door</string>
+    <string name="photo">Photo</string>
+    <string name="take_photo">Take photo</string>
+    <string name="choose_gallery">Choose from gallery</string>
+    <string name="retake">Replace photo</string>
+    <string name="enroll">Add to door</string>
+    <string name="enrolling">Adding…</string>
+    <string name="enroll_success">Added %1$s (ID %2$d).</string>
+    <string name="add_another">Add another</string>
+    <string name="need_photo">Take or choose a photo first.</string>
+    <string name="need_name">Enter a name.</string>
+    <string name="bad_pin">PIN must be 4–6 digits.</string>
+    <string name="camera_denied">Camera permission is needed to take a photo.</string>
+    <string name="no_doors">No doors are set up. Add one in the dashboard first.</string>
+
+    <!-- Roster -->
+    <string name="roster_title">Roster</string>
+    <string name="roster_search">Search names…</string>
+    <string name="roster_empty">No one on the roster yet.</string>
+    <string name="roster_needs_photo">Needs photo</string>
+    <string name="roster_enrolled">On the door</string>
+    <string name="roster_add">Add with photo</string>
+    <string name="roster_reload">Reload</string>
+
+    <!-- Temp PIN -->
+    <string name="temp_title">Temporary PIN</string>
+    <string name="temp_label">Guest name / label</string>
+    <string name="temp_door">Door</string>
+    <string name="temp_mode_once">One time</string>
+    <string name="temp_mode_repeat">Weekly</string>
+    <string name="temp_expires">Expires</string>
+    <string name="temp_start_now">Start now</string>
+    <string name="plus_2h">+2h</string>
+    <string name="plus_4h">+4h</string>
+    <string name="plus_1d">+1 day</string>
+    <string name="plus_1w">+1 week</string>
+    <string name="custom_pin">Custom PIN (optional)</string>
+    <string name="create_pin">Create PIN</string>
+    <string name="creating">Creating…</string>
+    <string name="pin_created">PIN for %1$s</string>
+    <string name="copy">Copy</string>
+    <string name="copied">Copied</string>
+    <string name="repeat_days">Repeat on</string>
+    <string name="time_from">From</string>
+    <string name="time_to">To</string>
+    <string name="until">Until</string>
+    <string name="active_pins">Active guest PINs</string>
+    <string name="revoke">Revoke</string>
+    <string name="no_active_pins">No active guest PINs.</string>
+    <string name="temp_ends">Ends %1$s</string>
+    <string name="temp_starts">Starts %1$s</string>
+    <string name="temp_recurring">Weekly %1$s–%2$s</string>
+    <string name="need_days">Pick at least one day.</string>
+
+    <!-- Common -->
+    <string name="loading">Loading…</string>
+    <string name="retry">Retry</string>
+    <string name="cancel">Cancel</string>
+    <string name="error_generic">Something went wrong. Try again.</string>
+    <string name="session_expired">Session expired — sign in again.</string>
+
+    <string-array name="weekday_letters">
+        <item>S</item>
+        <item>M</item>
+        <item>T</item>
+        <item>W</item>
+        <item>T</item>
+        <item>F</item>
+        <item>S</item>
+    </string-array>
+</resources>

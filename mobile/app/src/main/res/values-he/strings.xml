@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YTC Entry</string>
+
+    <!-- Login -->
+    <string name="login_title">כניסה</string>
+    <string name="email">אימייל</string>
+    <string name="password">סיסמה</string>
+    <string name="server_label">כתובת שרת</string>
+    <string name="advanced_server">הגדרות שרת</string>
+    <string name="sign_in">כניסה</string>
+    <string name="signing_in">מתחבר…</string>
+    <string name="login_failed">אימייל או סיסמה שגויים.</string>
+    <string name="server_unreachable">אין גישה לשרת. בדוק את הכתובת והחיבור.</string>
+
+    <!-- Tabs -->
+    <string name="tab_add">הוספה</string>
+    <string name="tab_roster">רשימה</string>
+    <string name="tab_temp">קוד זמני</string>
+    <string name="logout">יציאה</string>
+
+    <!-- Add Person -->
+    <string name="add_title">הוספת אדם</string>
+    <string name="name">שם</string>
+    <string name="group">קבוצה</string>
+    <string name="group_none">ללא קבוצה</string>
+    <string name="pin_optional">קוד (רשות)</string>
+    <string name="door">דלת</string>
+    <string name="photo">תמונה</string>
+    <string name="take_photo">צלם תמונה</string>
+    <string name="choose_gallery">בחר מהגלריה</string>
+    <string name="retake">החלף תמונה</string>
+    <string name="enroll">הוסף לדלת</string>
+    <string name="enrolling">מוסיף…</string>
+    <string name="enroll_success">%1$s נוסף (מזהה %2$d).</string>
+    <string name="add_another">הוסף עוד</string>
+    <string name="need_photo">צלם או בחר תמונה תחילה.</string>
+    <string name="need_name">הזן שם.</string>
+    <string name="bad_pin">הקוד חייב להיות 4–6 ספרות.</string>
+    <string name="camera_denied">נדרשת הרשאת מצלמה כדי לצלם.</string>
+    <string name="no_doors">לא הוגדרו דלתות. הוסף דלת בלוח הבקרה תחילה.</string>
+
+    <!-- Roster -->
+    <string name="roster_title">רשימת שמות</string>
+    <string name="roster_search">חיפוש שמות…</string>
+    <string name="roster_empty">אין עדיין אף אחד ברשימה.</string>
+    <string name="roster_needs_photo">חסרה תמונה</string>
+    <string name="roster_enrolled">בדלת</string>
+    <string name="roster_add">הוסף עם תמונה</string>
+    <string name="roster_reload">רענן</string>
+
+    <!-- Temp PIN -->
+    <string name="temp_title">קוד זמני</string>
+    <string name="temp_label">שם אורח / תווית</string>
+    <string name="temp_door">דלת</string>
+    <string name="temp_mode_once">חד פעמי</string>
+    <string name="temp_mode_repeat">שבועי</string>
+    <string name="temp_expires">פג בתאריך</string>
+    <string name="temp_start_now">התחל עכשיו</string>
+    <string name="plus_2h">+2 שעות</string>
+    <string name="plus_4h">+4 שעות</string>
+    <string name="plus_1d">+יום</string>
+    <string name="plus_1w">+שבוע</string>
+    <string name="custom_pin">קוד מותאם (רשות)</string>
+    <string name="create_pin">צור קוד</string>
+    <string name="creating">יוצר…</string>
+    <string name="pin_created">קוד עבור %1$s</string>
+    <string name="copy">העתק</string>
+    <string name="copied">הועתק</string>
+    <string name="repeat_days">חזרה בימים</string>
+    <string name="time_from">משעה</string>
+    <string name="time_to">עד שעה</string>
+    <string name="until">עד תאריך</string>
+    <string name="active_pins">קודים פעילים</string>
+    <string name="revoke">בטל</string>
+    <string name="no_active_pins">אין קודים פעילים.</string>
+    <string name="temp_ends">מסתיים %1$s</string>
+    <string name="temp_starts">מתחיל %1$s</string>
+    <string name="temp_recurring">שבועי %1$s–%2$s</string>
+    <string name="need_days">בחר לפחות יום אחד.</string>
+
+    <!-- Common -->
+    <string name="loading">טוען…</string>
+    <string name="retry">נסה שוב</string>
+    <string name="cancel">ביטול</string>
+    <string name="error_generic">משהו השתבש. נסה שוב.</string>
+    <string name="session_expired">פג תוקף ההתחברות — התחבר שוב.</string>
+
+    <string-array name="weekday_letters">
+        <item>א</item>
+        <item>ב</item>
+        <item>ג</item>
+        <item>ד</item>
+        <item>ה</item>
+        <item>ו</item>
+        <item>ש</item>
+    </string-array>
+</resources>

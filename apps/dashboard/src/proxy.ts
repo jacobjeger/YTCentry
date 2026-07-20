@@ -7,8 +7,10 @@
  * argon2 are available. The proxy just bounces obviously-unauthenticated
  * requests to /login and keeps logged-in users out of /login.
  *
- * The agent queue API (/api/agent/*) authenticates with a bearer token, not the
- * cookie, so it is excluded from the cookie gate.
+ * The agent queue API (/api/agent/*) and the phone-app API (/api/mobile/*)
+ * authenticate with a bearer token, not the cookie, so they are excluded from
+ * the cookie gate (otherwise the proxy would redirect their JSON calls to
+ * /login).
  */
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -44,6 +46,6 @@ export const config = {
   // Run on everything except Next internals, static assets, the agent bearer
   // API, and common public files.
   matcher: [
-    "/((?!api/agent|_next/static|_next/image|favicon.ico|toras-chaim-logo.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!api/agent|api/mobile|_next/static|_next/image|favicon.ico|toras-chaim-logo.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
