@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { prisma, getCachedGroups } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
+import { isUnreachableError } from "@ytc/core";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
 import { describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
@@ -39,6 +40,8 @@ const schema = z.object({
 export type EnrollState = {
   error?: string;
   ok?: { name: string; userId: number };
+  /** Saved but the door was offline — the worker will push it automatically. */
+  queued?: { name: string };
 };
 
 export async function enrollAction(
@@ -81,9 +84,16 @@ export async function enrollAction(
       actorId: user.id,
       deviceIds,
     });
-    // Only report success if the door actually accepted the face. Map a
-    // timeout/abort/network failure to a clear "door isn't responding" message.
-    if (!pushed) return { error: describeDeviceError(deviceError, "enroll") };
+    // Only report success if the door actually accepted the face.
+    if (!pushed) {
+      // Door offline → the enrollee is saved (PUSH_FAILED) and the worker will
+      // push it automatically once the door is back. Tell the user it's queued,
+      // not failed. A non-transient error (e.g. bad face) is a real error.
+      if (isUnreachableError(deviceError)) {
+        return { queued: { name: enrollee.displayName } };
+      }
+      return { error: describeDeviceError(deviceError, "enroll") };
+    }
     return {
       ok: { name: enrollee.displayName, userId: enrollee.akuvoxUserId },
     };

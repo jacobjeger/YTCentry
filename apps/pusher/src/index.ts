@@ -17,6 +17,7 @@ import {
   activateDueTempPins,
   getActiveDevices,
   syncDeviceDirectory,
+  retryFailedEnrollPushes,
   type ClaimedJob,
 } from "@ytc/core";
 import { loadConfig } from "./config";
@@ -152,6 +153,27 @@ async function directorySyncLoop() {
   }
 }
 
+/**
+ * Store-and-forward: re-push enrollments that failed because the door was
+ * unreachable. When someone is added during a door/tunnel outage, enrollPerson
+ * saves them (photo + PUSH_FAILED) and this loop lands them automatically once
+ * the door is back — no lost people, no manual re-push.
+ */
+async function retryLoop() {
+  const interval = Number(process.env.RETRY_PUSH_MS ?? 2 * 60 * 1000);
+  while (running) {
+    try {
+      const { pushed, remaining } = await retryFailedEnrollPushes();
+      if (pushed) {
+        console.log(`[retry] pushed ${pushed} queued enrollment(s); ${remaining} still waiting`);
+      }
+    } catch (e) {
+      console.error("[retry loop error]", e);
+    }
+    await sleep(interval);
+  }
+}
+
 async function main() {
   console.log(
     `ytc pusher up — ${cfg.dryRun ? "DRY_RUN (no device calls)" : `target ${cfg.akuvox.baseUrl}`}`,
@@ -159,6 +181,7 @@ async function main() {
   cleanupLoop();
   tempPinLoop();
   directorySyncLoop();
+  retryLoop();
 
   // Door snapshots are device READS via the /web session (only need the web
   // password + a reachable baseUrl) — independent of DRY_RUN, which only mocks

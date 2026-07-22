@@ -167,6 +167,8 @@ export interface Dict {
     noFace: string;
     queuedTitle: string; // "{name}"
     queuedBody: string; // "{userId}"
+    queuedOfflineTitle: string; // "{name}"
+    queuedOfflineBody: string;
     addAnother: string;
     needPhoto: string;
     tooLarge: string;
@@ -545,6 +547,9 @@ const en: Dict = {
     queuedTitle: "{name} is on the door",
     queuedBody:
       "Door ID {userId} — the face is confirmed on the scanner. They can enter now.",
+    queuedOfflineTitle: "{name} is saved",
+    queuedOfflineBody:
+      "The door is offline right now — they'll be added to it automatically as soon as it's back online.",
     addAnother: "Add another",
     needPhoto: "Add a photo to continue",
     tooLarge: "That image is too large (max 15MB).",
@@ -925,6 +930,9 @@ const he: Dict = {
     noFace: "הוסיפו תמונה — העלו אחת או צלמו מהמצלמה.",
     queuedTitle: "{name} נמצא בדלת",
     queuedBody: "מזהה דלת {userId} — הפנים אושרו בסורק. ניתן להיכנס עכשיו.",
+    queuedOfflineTitle: "{name} נשמר",
+    queuedOfflineBody:
+      "הדלת לא מקוונת כרגע — האדם יתווסף אליה אוטומטית ברגע שהיא תחזור לפעול.",
     addAnother: "הוספת אדם נוסף",
     needPhoto: "הוסיפו תמונה כדי להמשיך",
     tooLarge: "התמונה גדולה מדי (עד 15MB).",

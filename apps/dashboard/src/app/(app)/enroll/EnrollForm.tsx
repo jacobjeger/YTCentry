@@ -41,8 +41,6 @@ export default function EnrollForm() {
   const [camError, setCamError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null); // hidden, name="photo"
-  const takePhotoRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -128,6 +126,23 @@ export default function EnrollForm() {
     formRef.current?.reset();
     // useActionState has no reset; remounting via key is simplest:
     window.location.reload();
+  }
+
+  if (state.queued) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
+        <h2 className="text-lg font-semibold text-amber-800">
+          {fmt(t.enroll.queuedOfflineTitle, { name: state.queued.name })}
+        </h2>
+        <p className="text-sm text-amber-700 mt-1">{t.enroll.queuedOfflineBody}</p>
+        <button
+          onClick={reset}
+          className="mt-4 rounded-lg bg-bronze px-4 py-2 text-white font-medium hover:bg-bronze-dark"
+        >
+          {t.enroll.addAnother}
+        </button>
+      </div>
+    );
   }
 
   if (state.ok) {
@@ -225,40 +240,29 @@ export default function EnrollForm() {
         <div className="grid gap-4 sm:grid-cols-2 items-start">
           <div className="rounded-lg border border-dashed border-stone-300 p-4 min-h-[220px] flex flex-col items-center justify-center gap-3">
             {mode === "upload" ? (
-              <div className="flex flex-col gap-2 w-full items-center">
-                {/* Programmatic click (not a wrapping label) so it works reliably
-                    in every desktop + mobile browser. On a phone the "Take photo"
-                    input's capture opens the rear camera; desktop opens the file
-                    picker. */}
-                <button
-                  type="button"
-                  onClick={() => takePhotoRef.current?.click()}
-                  className="rounded-lg bg-bronze px-4 py-2.5 text-sm font-medium text-white hover:bg-bronze-dark w-full max-w-xs"
-                >
-                  📷 {t.enroll.takePhoto}
-                </button>
-                <input
-                  ref={takePhotoRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => galleryRef.current?.click()}
-                  className="rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-100 w-full max-w-xs"
-                >
-                  🖼️ {t.enroll.chooseGallery}
-                </button>
-                <input
-                  ref={galleryRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-                  className="hidden"
-                />
+              // Plain VISIBLE file inputs — no JS, no display:none. A hidden
+              // (display:none) input is what made the fancy buttons silently
+              // no-op in some browsers. On a phone, the first input's `capture`
+              // opens the camera; the second opens the photo library.
+              <div className="flex flex-col gap-4 w-full items-center text-sm">
+                <label className="flex flex-col items-center gap-1.5 text-stone-600">
+                  <span className="font-medium">📷 {t.enroll.takePhoto}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <div className="w-full border-t border-stone-100" />
+                <label className="flex flex-col items-center gap-1.5 text-stone-600">
+                  <span className="font-medium">🖼️ {t.enroll.chooseGallery}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+                  />
+                </label>
               </div>
             ) : (
               <>
