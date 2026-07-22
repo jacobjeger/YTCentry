@@ -197,7 +197,7 @@ export default function UnifiedDirectory() {
 
           <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-stone-50 text-stone-500">
                   <tr>
                     <th className="px-4 py-3 text-start font-medium">{t.directory.name}</th>

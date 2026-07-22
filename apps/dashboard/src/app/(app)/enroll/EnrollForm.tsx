@@ -223,12 +223,29 @@ export default function EnrollForm() {
         <div className="grid gap-4 sm:grid-cols-2 items-start">
           <div className="rounded-lg border border-dashed border-stone-300 p-4 min-h-[220px] flex flex-col items-center justify-center gap-3">
             {mode === "upload" ? (
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-                className="text-sm"
-              />
+              <div className="flex flex-col gap-2 w-full items-center">
+                {/* Take photo — on a phone this opens the rear camera directly;
+                    desktop browsers ignore `capture` and open the file picker. */}
+                <label className="cursor-pointer rounded-lg bg-bronze px-4 py-2.5 text-sm font-medium text-white hover:bg-bronze-dark w-full max-w-xs text-center">
+                  📷 {t.enroll.takePhoto}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+                    className="hidden"
+                  />
+                </label>
+                <label className="cursor-pointer rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-100 w-full max-w-xs text-center">
+                  🖼️ {t.enroll.chooseGallery}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             ) : (
               <>
                 <video

@@ -156,6 +156,8 @@ export interface Dict {
     phone: string;
     uploadPhoto: string;
     useWebcam: string;
+    takePhoto: string;
+    chooseGallery: string;
     capture: string;
     preview: string;
     addPhoto: string;
@@ -531,6 +533,8 @@ const en: Dict = {
     phone: "Phone",
     uploadPhoto: "Upload photo",
     useWebcam: "Use webcam",
+    takePhoto: "Take photo",
+    chooseGallery: "Choose from gallery",
     capture: "Capture",
     preview: "Photo preview",
     addPhoto: "Add a photo to continue",
@@ -910,6 +914,8 @@ const he: Dict = {
     phone: "טלפון",
     uploadPhoto: "העלאת תמונה",
     useWebcam: "שימוש במצלמה",
+    takePhoto: "צלם תמונה",
+    chooseGallery: "בחר מהגלריה",
     capture: "צילום",
     preview: "תצוגת תמונה",
     addPhoto: "הוסיפו תמונה כדי להמשיך",

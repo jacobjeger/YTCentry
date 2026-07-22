@@ -119,7 +119,8 @@ export default function RosterManager() {
         {filtered.length === 0 ? (
           <p className="p-6 text-center text-stone-500">{t.roster.listEmpty}</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="text-start text-stone-500 border-b border-stone-100">
                 <th className="p-3 w-10">
@@ -172,6 +173,7 @@ export default function RosterManager() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

@@ -22,8 +22,8 @@ export default async function StaffPage() {
         <p className="text-stone-500">{t.staff.subtitle}</p>
       </div>
 
-      <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-xl border border-stone-200 bg-white overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-stone-50 text-stone-500 text-start">
             <tr>
               <th className="px-4 py-3 font-medium text-start">{t.staff.name}</th>
