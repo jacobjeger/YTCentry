@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma, getCachedGroups } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
+import { describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
@@ -80,8 +81,9 @@ export async function enrollAction(
       actorId: user.id,
       deviceIds,
     });
-    // Only report success if the door actually accepted the face.
-    if (!pushed) return { error: deviceError ?? t.common.error };
+    // Only report success if the door actually accepted the face. Map a
+    // timeout/abort/network failure to a clear "door isn't responding" message.
+    if (!pushed) return { error: describeDeviceError(deviceError, "enroll") };
     return {
       ok: { name: enrollee.displayName, userId: enrollee.akuvoxUserId },
     };

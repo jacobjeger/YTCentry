@@ -22,8 +22,12 @@
  */
 import sharp from "sharp";
 
-const MAX_BYTES = 2 * 1024 * 1024; // device-friendly cap (<= 2MB)
-const MAX_EDGE = 1024; // downscale longest edge to this
+// The E16C is a low-power reader — it doesn't need (and is slow to ingest) a
+// big image. A 720px longest edge keeps the face well over the ~200px the
+// device wants while making the upload + on-device detection fast, which is what
+// stops the push from timing out. Face templates don't benefit from more pixels.
+const MAX_BYTES = 512 * 1024; // device-friendly cap (<= 512KB)
+const MAX_EDGE = 720; // downscale longest edge to this
 
 export interface FaceValidation {
   ok: boolean;
@@ -105,7 +109,7 @@ export async function validateFace(input: Uint8Array): Promise<FaceValidation> {
   } while (bytes.byteLength > MAX_BYTES && quality >= 35);
 
   if (bytes.byteLength > MAX_BYTES) {
-    return { ok: false, reason: "Could not compress image under 2MB." };
+    return { ok: false, reason: "Could not compress the image small enough." };
   }
 
   // Optional real detection.

@@ -311,7 +311,10 @@ export class AkuvoxClient {
         opts.mime === "image/png" ? "face.png" : "face.jpg",
       );
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), this.timeout);
+      // Face upload + on-device face detection is slow — a full-resolution
+      // photo re-encodes to ~2 MB and the reader runs detection on it. Give this
+      // heavy write far more room than a normal read (which stays at this.timeout).
+      const t = setTimeout(() => ctrl.abort(), Math.max(this.timeout, 60_000));
       try {
         const res = await fetch(`${this.cfg.baseUrl}/web/user/set?${q}`, {
           method: "POST",
@@ -478,7 +481,8 @@ export class AkuvoxClient {
         mime === "image/png" ? "face.png" : "face.jpg",
       );
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), this.timeout);
+      // Heavy face upload — see pushUserWeb; allow up to 60s, not the read timeout.
+      const t = setTimeout(() => ctrl.abort(), Math.max(this.timeout, 60_000));
       try {
         const res = await fetch(`${this.cfg.baseUrl}/web/user/edit?${q}`, {
           method: "POST",
