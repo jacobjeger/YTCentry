@@ -4,6 +4,7 @@ import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 import { setActive } from "./actions";
 import CreateStaffForm from "./CreateStaffForm";
+import ResetPasswordCell from "./ResetPasswordCell";
 
 export const dynamic = "force-dynamic";
 
@@ -51,25 +52,28 @@ export default async function StaffPage() {
                     <span className="text-stone-400">{t.staff.disabled}</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-end">
-                  {u.id === admin.id ? (
-                    <span className="text-xs text-stone-400">{t.staff.you}</span>
-                  ) : (
-                    <form action={setActive}>
-                      <input type="hidden" name="id" value={u.id} />
-                      <input
-                        type="hidden"
-                        name="active"
-                        value={(!u.active).toString()}
-                      />
-                      <button
-                        type="submit"
-                        className="text-xs text-bronze-dark hover:underline"
-                      >
-                        {u.active ? t.staff.disable : t.staff.enable}
-                      </button>
-                    </form>
-                  )}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-4 justify-end flex-wrap">
+                    <ResetPasswordCell id={u.id} />
+                    {u.id === admin.id ? (
+                      <span className="text-xs text-stone-400">{t.staff.you}</span>
+                    ) : (
+                      <form action={setActive}>
+                        <input type="hidden" name="id" value={u.id} />
+                        <input
+                          type="hidden"
+                          name="active"
+                          value={(!u.active).toString()}
+                        />
+                        <button
+                          type="submit"
+                          className="text-xs text-bronze-dark hover:underline"
+                        >
+                          {u.active ? t.staff.disable : t.staff.enable}
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

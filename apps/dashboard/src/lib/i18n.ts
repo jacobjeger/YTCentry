@@ -31,6 +31,7 @@ export interface Dict {
     tempPins: string;
     schedules: string;
     signOut: string;
+    menu: string;
     language: string;
   };
   temp: {
@@ -196,6 +197,10 @@ export interface Dict {
     exists: string;
     created: string; // "{email}"
     pwTooShort: string;
+    resetPw: string;
+    resetSave: string;
+    newPasswordPh: string;
+    resetDone: string; // "{email}"
   };
   roster: {
     title: string;
@@ -398,6 +403,7 @@ const en: Dict = {
     tempPins: "Temp PINs",
     schedules: "Schedules",
     signOut: "Sign out",
+    menu: "Menu",
     language: "Language",
   },
   temp: {
@@ -568,6 +574,10 @@ const en: Dict = {
     exists: "A login with that email already exists.",
     created: "Created login for {email}.",
     pwTooShort: "Password must be at least 8 characters.",
+    resetPw: "Reset password",
+    resetSave: "Save",
+    newPasswordPh: "New password (min 8)",
+    resetDone: "Password reset for {email}.",
   },
   roster: {
     title: "Roster",
@@ -774,6 +784,7 @@ const he: Dict = {
     tempPins: "קודים זמניים",
     schedules: "לוחות זמנים",
     signOut: "התנתקות",
+    menu: "תפריט",
     language: "שפה",
   },
   temp: {
@@ -941,6 +952,10 @@ const he: Dict = {
     exists: "כבר קיים חשבון עם אימייל זה.",
     created: "נוצר חשבון עבור {email}.",
     pwTooShort: "הסיסמה חייבת להכיל לפחות 8 תווים.",
+    resetPw: "איפוס סיסמה",
+    resetSave: "שמירה",
+    newPasswordPh: "סיסמה חדשה (לפחות 8)",
+    resetDone: "הסיסמה אופסה עבור {email}.",
   },
   roster: {
     title: "רשימת תלמידים",

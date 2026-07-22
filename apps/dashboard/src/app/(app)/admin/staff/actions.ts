@@ -56,6 +56,42 @@ export async function createStaff(
   return { ok: fmt(t.staff.created, { email }) };
 }
 
+const resetSchema = z.object({
+  id: z.string().min(1),
+  password: z.string().min(8),
+});
+
+/** Admin sets a new password for another login (forgot-password recovery). */
+export async function resetStaffPassword(
+  _prev: StaffActionState,
+  formData: FormData,
+): Promise<StaffActionState> {
+  const admin = await requireAdmin();
+  const t = getDictionary(await getLocale());
+  const parsed = resetSchema.safeParse({
+    id: formData.get("id"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) return { error: t.staff.pwTooShort };
+
+  const user = await prisma.staffUser.findUnique({ where: { id: parsed.data.id } });
+  if (!user) return { error: t.login.invalid };
+
+  await prisma.staffUser.update({
+    where: { id: parsed.data.id },
+    data: { passwordHash: await hashPassword(parsed.data.password) },
+  });
+  await audit({
+    actorId: admin.id,
+    action: "staff.password",
+    targetType: "StaffUser",
+    targetId: user.id,
+    meta: { email: user.email, byAdmin: true },
+  });
+  revalidatePath("/admin/staff");
+  return { ok: fmt(t.staff.resetDone, { email: user.email }) };
+}
+
 export async function setActive(formData: FormData) {
   const admin = await requireAdmin();
   const id = String(formData.get("id"));
