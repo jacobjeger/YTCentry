@@ -7,7 +7,11 @@ import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 import { EMPTY_MAPPING, planImport, suggestMapping, type Mapping } from "./mapping";
 
-export type { Mapping };
+// Do NOT re-export Mapping from here. Turbopack's "use server" transform emits
+// a runtime reference for a re-exported type instead of erasing it, and the
+// module dies on evaluation with "ReferenceError: Mapping is not defined".
+// Both tsc and next build pass — it only fails when the page renders.
+// Consumers import Mapping from "./mapping" directly.
 
 export interface ParsedRoster {
   headers: string[];

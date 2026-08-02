@@ -5,9 +5,9 @@ import {
   parseRoster,
   importRoster,
   type ParsedRoster,
-  type Mapping,
   type ImportState,
 } from "./actions";
+import type { Mapping } from "./mapping";
 import { useT } from "@/components/LocaleProvider";
 
 const sel =
