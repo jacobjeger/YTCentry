@@ -146,6 +146,16 @@ export interface Dict {
     rosterBody: string;
     dirTitle: string;
     dirBody: string;
+    doorStatus: string;
+    doorOnline: string;
+    doorOffline: string;
+    doorProblem: string;
+    doorProblemHelp: string;
+    doorWaiting: string; // "{n}"
+    waitingToSync: string; // "{n}"
+    offlineSafe: string;
+    offlineQueued: string;
+    noDoors: string;
   };
   enroll: {
     title: string;
@@ -532,6 +542,19 @@ const en: Dict = {
     rosterBody: "See who still needs a photo and add incoming students.",
     dirTitle: "Everyone on the door",
     dirBody: "Search, edit, or remove people already on the scanner.",
+    doorStatus: "Door status",
+    doorOnline: "Connected",
+    doorOffline: "Not connected",
+    doorProblem: "Needs attention",
+    doorWaiting: "{n} waiting",
+    waitingToSync: "{n} waiting to sync",
+    offlineSafe:
+      "You can still add people while a door is offline — they're saved and sent automatically once it's back.",
+    offlineQueued:
+      "These people are saved and will be sent to the door automatically once it's back. No need to re-add them.",
+    doorProblemHelp:
+      "This isn't a network outage — the door refused the login or a setting is missing. Waiting won't fix it; check the door's password in Settings.",
+    noDoors: "No doors are configured yet. Add one in Settings.",
   },
   enroll: {
     title: "Add a person",
@@ -925,6 +948,19 @@ const he: Dict = {
     rosterBody: "ראו מי עדיין חסר תמונה והוסיפו תלמידים נכנסים.",
     dirTitle: "כל מי שעל הדלת",
     dirBody: "חיפוש, עריכה או הסרה של אנשים שכבר במכשיר.",
+    doorStatus: "מצב הדלת",
+    doorOnline: "מחוברת",
+    doorOffline: "לא מחוברת",
+    doorProblem: "דורשת טיפול",
+    doorWaiting: "{n} ממתינים",
+    waitingToSync: "{n} ממתינים לשליחה",
+    offlineSafe:
+      "אפשר להוסיף אנשים גם כשהדלת מנותקת — הם נשמרים ונשלחים אוטומטית כשהיא חוזרת.",
+    offlineQueued:
+      "האנשים האלה נשמרו ויישלחו לדלת אוטומטית כשהיא תחזור. אין צורך להוסיף אותם שוב.",
+    doorProblemHelp:
+      "זו אינה תקלת רשת — הדלת דחתה את ההתחברות או שחסרה הגדרה. המתנה לא תפתור זאת; בדקו את סיסמת הדלת בהגדרות.",
+    noDoors: "עדיין לא הוגדרו דלתות. הוסיפו דלת בהגדרות.",
   },
   enroll: {
     title: "הוספת אדם",

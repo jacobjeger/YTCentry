@@ -17,7 +17,7 @@ export async function getAllDevices(): Promise<Device[]> {
 
 /** Build an AkuvoxClient for one door. CF Access headers come from env (the
  *  tunnels share the same Access setup, if any). */
-export function clientForDevice(d: Device): AkuvoxClient {
+export function clientForDevice(d: Device, timeoutMs = 20000): AkuvoxClient {
   return new AkuvoxClient({
     baseUrl: d.baseUrl,
     apiUser: "admin",
@@ -26,7 +26,7 @@ export function clientForDevice(d: Device): AkuvoxClient {
     webPassword: decryptSecret(d.webPasswordEnc),
     cfAccessClientId: process.env.CF_ACCESS_CLIENT_ID || undefined,
     cfAccessClientSecret: process.env.CF_ACCESS_CLIENT_SECRET || undefined,
-    timeoutMs: 20000,
+    timeoutMs,
   });
 }
 

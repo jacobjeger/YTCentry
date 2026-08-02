@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { prisma } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getDictionary, fmt } from "@/lib/i18n";
+import DoorStatus, { DoorStatusSkeleton } from "./DoorStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,12 @@ export default async function Home() {
           <StatCard label={t.home.guestCodes} value={s.guests} href="/temp-pins" />
         )}
       </div>
+
+      {/* Probes the doors live, so it streams in separately — a door that is
+          down only reports after its timeout and must not hold up the page. */}
+      <Suspense fallback={<DoorStatusSkeleton label={t.home.doorStatus} />}>
+        <DoorStatus />
+      </Suspense>
 
       <div>
         <h2 className="text-sm font-medium uppercase tracking-wide text-stone-400 mb-3">
