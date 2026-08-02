@@ -214,7 +214,10 @@ export interface Dict {
     rowsFound: string; // "{count}"
     mapping: string;
     colStudentId: string;
+    idHint: string;
     colName: string;
+    colLastName: string;
+    lastNameHint: string;
     colShiur: string;
     colPhone: string;
     colAliases: string;
@@ -226,6 +229,9 @@ export interface Dict {
     back: string;
     needNameId: string;
     imported: string; // "{created}" "{updated}"
+    skippedNote: string; // "{n}"
+    dupIds: string; // "{n}" "{col}" "{examples}"
+    dupWarn: string; // "{col}" "{distinct}" "{rows}"
     parseError: string;
     empty: string;
     needName: string;
@@ -597,7 +603,10 @@ const en: Dict = {
     rowsFound: "{count} rows found. Map the columns, then import.",
     mapping: "Column mapping",
     colStudentId: "Student ID column",
+    idHint: "Optional — leave as “none” unless the sheet has a truly unique ID. We'll generate one from the name.",
     colName: "Name column",
+    colLastName: "Last name column",
+    lastNameHint: "Only if first and last names are in separate columns — we'll join them.",
     colShiur: "Shiur column",
     colPhone: "Phone column",
     colAliases: "Aliases column",
@@ -607,8 +616,13 @@ const en: Dict = {
     import: "Import roster",
     importing: "Importing…",
     back: "Choose a different file",
-    needNameId: "Map both a Student ID column and a Name column.",
+    needNameId: "Map a Name column. Student ID is optional.",
     imported: "Imported: {created} added, {updated} updated.",
+    skippedNote: "{n} rows skipped (blank ID or name).",
+    dupIds:
+      "Nothing was imported: {n} rows repeat a Student ID that an earlier row already used (e.g. {examples}). The “{col}” column isn't a unique ID — pick the right Student ID column and import again.",
+    dupWarn:
+      "“{col}” has only {distinct} distinct values across {rows} rows, so it can't be a Student ID. Importing would merge talmidim together.",
     parseError: "Couldn't read that file. Use CSV or .xlsx with a header row.",
     empty: "That file has no data rows.",
     needName: "Name is required.",
@@ -979,7 +993,10 @@ const he: Dict = {
     rowsFound: "נמצאו {count} שורות. מפו את העמודות וייבאו.",
     mapping: "מיפוי עמודות",
     colStudentId: "עמודת מספר תלמיד",
+    idHint: "רשות — השאירו „ללא” אלא אם יש בגיליון מזהה ייחודי אמיתי. ניצור מזהה מהשם.",
     colName: "עמודת שם",
+    colLastName: "עמודת שם משפחה",
+    lastNameHint: "רק אם השם הפרטי ושם המשפחה נמצאים בעמודות נפרדות — נחבר ביניהם.",
     colShiur: "עמודת שיעור",
     colPhone: "עמודת טלפון",
     colAliases: "עמודת כינויים",
@@ -989,8 +1006,13 @@ const he: Dict = {
     import: "ייבוא רשימה",
     importing: "מייבא…",
     back: "בחירת קובץ אחר",
-    needNameId: "יש למפות גם עמודת מספר תלמיד וגם עמודת שם.",
+    needNameId: "יש למפות עמודת שם. מספר תלמיד הוא רשות.",
     imported: "יובאו: {created} נוספו, {updated} עודכנו.",
+    skippedNote: "{n} שורות דולגו (חסר מספר תלמיד או שם).",
+    dupIds:
+      "לא יובא דבר: ב‑{n} שורות חוזר מספר תלמיד שכבר הופיע בשורה קודמת (למשל {examples}). העמודה „{col}” אינה מזהה ייחודי — בחרו את עמודת מספר התלמיד הנכונה וייבאו שוב.",
+    dupWarn:
+      "בעמודה „{col}” יש רק {distinct} ערכים שונים מתוך {rows} שורות, ולכן היא אינה יכולה לשמש כמספר תלמיד. ייבוא ימזג תלמידים זה לזה.",
     parseError: "לא ניתן לקרוא את הקובץ. השתמשו ב‑CSV או ב‑xlsx עם שורת כותרת.",
     empty: "אין שורות נתונים בקובץ.",
     needName: "יש להזין שם.",

@@ -5,6 +5,9 @@ import { prisma, normalizeName, audit } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
+import { EMPTY_MAPPING, planImport, suggestMapping, type Mapping } from "./mapping";
+
+export type { Mapping };
 
 export interface ParsedRoster {
   headers: string[];
@@ -13,39 +16,13 @@ export interface ParsedRoster {
   error?: string;
 }
 
-export interface Mapping {
-  studentId: string;
-  fullName: string;
-  shiur: string;
-  phone: string;
-  aliases: string;
-}
-
-const EMPTY: Mapping = {
-  studentId: "",
-  fullName: "",
-  shiur: "",
-  phone: "",
-  aliases: "",
-};
-
-/** Header auto-detection — pick the first header matching any keyword. */
-function detect(headers: string[], keywords: string[]): string {
-  const low = headers.map((h) => h.toLowerCase().trim());
-  for (const kw of keywords) {
-    const i = low.findIndex((h) => h.includes(kw));
-    if (i >= 0) return headers[i]!;
-  }
-  return "";
-}
-
 export async function parseRoster(formData: FormData): Promise<ParsedRoster> {
   await requireUser();
   const t = getDictionary(await getLocale());
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { headers: [], rows: [], suggested: EMPTY, error: t.roster.parseError };
+    return { headers: [], rows: [], suggested: EMPTY_MAPPING, error: t.roster.parseError };
   }
   try {
     const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
@@ -56,19 +33,13 @@ export async function parseRoster(formData: FormData): Promise<ParsedRoster> {
       raw: false,
     });
     if (rows.length === 0) {
-      return { headers: [], rows: [], suggested: EMPTY, error: t.roster.empty };
+      return { headers: [], rows: [], suggested: EMPTY_MAPPING, error: t.roster.empty };
     }
     const headers = Object.keys(rows[0]!);
-    const suggested: Mapping = {
-      studentId: detect(headers, ["student id", "studentid", "id", "מספר", "מס"]),
-      fullName: detect(headers, ["name", "full", "talmid", "שם"]),
-      shiur: detect(headers, ["shiur", "class", "grade", "שיעור"]),
-      phone: detect(headers, ["phone", "cell", "mobile", "טלפון", "נייד"]),
-      aliases: detect(headers, ["alias", "aka", "nickname", "כינוי"]),
-    };
+    const suggested = suggestMapping(headers);
     return { headers, rows, suggested };
   } catch {
-    return { headers: [], rows: [], suggested: EMPTY, error: t.roster.parseError };
+    return { headers: [], rows: [], suggested: EMPTY_MAPPING, error: t.roster.parseError };
   }
 }
 
@@ -87,11 +58,12 @@ export async function importRoster(
   const map: Mapping = {
     studentId: String(formData.get("map_studentId") ?? ""),
     fullName: String(formData.get("map_fullName") ?? ""),
+    lastName: String(formData.get("map_lastName") ?? ""),
     shiur: String(formData.get("map_shiur") ?? ""),
     phone: String(formData.get("map_phone") ?? ""),
     aliases: String(formData.get("map_aliases") ?? ""),
   };
-  if (!map.studentId || !map.fullName) {
+  if (!map.fullName) {
     return { error: t.roster.needNameId };
   }
 
@@ -102,27 +74,28 @@ export async function importRoster(
     return { error: t.roster.parseError };
   }
 
+  // Resolve the whole file before touching the DB. studentId is the upsert
+  // key, so two rows sharing one makes the second silently overwrite the first
+  // — a wrong mapping (e.g. a year column of 1s and 2s) collapses the entire
+  // roster onto a couple of records while still reporting success.
+  const plan = planImport(rows, map);
+  const { skipped } = plan;
+
+  if (plan.collisions.length > 0) {
+    const dupRows = rows.length - skipped - plan.rows.length;
+    return {
+      error: t.roster.dupIds
+        .replace("{n}", String(dupRows))
+        .replace("{col}", map.studentId)
+        .replace("{examples}", plan.collisions.join("; ")),
+    };
+  }
+  if (plan.rows.length === 0) return { error: t.roster.empty };
+
   let created = 0;
   let updated = 0;
-  for (const row of rows) {
-    const studentId = String(row[map.studentId] ?? "").trim();
-    const fullName = String(row[map.fullName] ?? "").trim();
-    if (!studentId || !fullName) continue;
-
-    const aliases = map.aliases
-      ? String(row[map.aliases] ?? "")
-          .split(",")
-          .map((a) => a.trim())
-          .filter(Boolean)
-      : [];
-    const data = {
-      fullName,
-      normalizedName: normalizeName(fullName),
-      shiur: map.shiur ? String(row[map.shiur] ?? "").trim() || null : null,
-      phone: map.phone ? String(row[map.phone] ?? "").trim() || null : null,
-      aliases,
-    };
-
+  for (const { studentId, ...fields } of plan.rows) {
+    const data = { ...fields, normalizedName: normalizeName(fields.fullName) };
     const existing = await prisma.rosterEntry.findUnique({ where: { studentId } });
     if (existing) {
       await prisma.rosterEntry.update({ where: { studentId }, data });
@@ -138,16 +111,14 @@ export async function importRoster(
     action: "roster.upload",
     targetType: "RosterEntry",
     targetId: "bulk",
-    meta: { created, updated, total: rows.length },
+    meta: { created, updated, skipped, total: rows.length },
   });
 
-  return { ok: fmtImported(t.roster.imported, created, updated) };
-}
-
-function fmtImported(template: string, created: number, updated: number): string {
-  return template
+  let ok = t.roster.imported
     .replace("{created}", String(created))
     .replace("{updated}", String(updated));
+  if (skipped > 0) ok += " " + t.roster.skippedNote.replace("{n}", String(skipped));
+  return { ok };
 }
 
 // ── Roster view + manual add + photo selection ──────────────────────────────

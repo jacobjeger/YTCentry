@@ -82,10 +82,21 @@ export default function RosterUpload() {
   }
 
   const preview = parsed.rows.slice(0, 5);
+
+  // The ID column is the upsert key — if it isn't unique, rows overwrite each
+  // other instead of being added. Catch that here rather than after the import.
+  const idValues = mapping.studentId
+    ? parsed.rows
+        .map((r) => String(r[mapping.studentId] ?? "").trim())
+        .filter(Boolean)
+    : [];
+  const distinctIds = new Set(idValues).size;
+  const idsNotUnique = idValues.length > 0 && distinctIds < idValues.length;
   const fields: { key: keyof Mapping; label: string; required?: boolean; hint?: string }[] =
     [
-      { key: "studentId", label: t.roster.colStudentId, required: true },
+      { key: "studentId", label: t.roster.colStudentId, hint: t.roster.idHint },
       { key: "fullName", label: t.roster.colName, required: true },
+      { key: "lastName", label: t.roster.colLastName, hint: t.roster.lastNameHint },
       { key: "shiur", label: t.roster.colShiur },
       { key: "phone", label: t.roster.colPhone },
       { key: "aliases", label: t.roster.colAliases, hint: t.roster.aliasesHint },
@@ -134,6 +145,15 @@ export default function RosterUpload() {
           ))}
         </div>
       </div>
+
+      {idsNotUnique ? (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {t.roster.dupWarn
+            .replace("{col}", mapping.studentId)
+            .replace("{distinct}", String(distinctIds))
+            .replace("{rows}", String(idValues.length))}
+        </p>
+      ) : null}
 
       <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
         <div className="px-4 py-2 bg-stone-50 text-sm font-medium text-stone-600">
