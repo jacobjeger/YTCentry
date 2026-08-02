@@ -76,7 +76,7 @@ export default function RosterManager() {
       <form action={addAction} className="rounded-xl border border-stone-200 bg-white p-5">
         <h2 className="font-semibold mb-3">{t.roster.manualTitle}</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <input name="fullName" required placeholder={t.roster.colName} className={input} />
+          <input name="fullName" required placeholder={t.roster.personName} className={input} />
           <input name="shiur" placeholder={t.roster.year} className={input} />
         </div>
         <div className="mt-3 flex items-center gap-3">
@@ -131,7 +131,7 @@ export default function RosterManager() {
                     title={t.roster.photo}
                   />
                 </th>
-                <th className="p-3 text-start font-medium">{t.roster.colName}</th>
+                <th className="p-3 text-start font-medium">{t.roster.personName}</th>
                 <th className="p-3 text-start font-medium">{t.roster.year}</th>
                 <th className="p-3 text-start font-medium">{t.roster.photo}</th>
                 <th className="p-3 text-start font-medium"></th>

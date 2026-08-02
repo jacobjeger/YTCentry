@@ -216,6 +216,8 @@ export interface Dict {
     colStudentId: string;
     idHint: string;
     colName: string;
+    /** Plain "Name" — for the roster table/manual add, not the column mapper. */
+    personName: string;
     colLastName: string;
     lastNameHint: string;
     colShiur: string;
@@ -605,6 +607,7 @@ const en: Dict = {
     colStudentId: "Student ID column",
     idHint: "Optional — leave as “none” unless the sheet has a truly unique ID. We'll generate one from the name.",
     colName: "Name column",
+    personName: "Name",
     colLastName: "Last name column",
     lastNameHint: "Only if first and last names are in separate columns — we'll join them.",
     colShiur: "Shiur column",
@@ -995,6 +998,7 @@ const he: Dict = {
     colStudentId: "עמודת מספר תלמיד",
     idHint: "רשות — השאירו „ללא” אלא אם יש בגיליון מזהה ייחודי אמיתי. ניצור מזהה מהשם.",
     colName: "עמודת שם",
+    personName: "שם",
     colLastName: "עמודת שם משפחה",
     lastNameHint: "רק אם השם הפרטי ושם המשפחה נמצאים בעמודות נפרדות — נחבר ביניהם.",
     colShiur: "עמודת שיעור",
