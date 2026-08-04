@@ -58,6 +58,10 @@ export async function POST(request: Request) {
     const bytes = new Uint8Array(raw);
     const tail = Buffer.from(bytes.slice(Math.max(0, bytes.length - 120))).toString("latin1");
     const boundary = /boundary=([^;]+)/i.exec(contentType)?.[1] ?? "";
+    // The part headers live at the top, before the JPEG payload. The body is
+    // whole and the delimiters are right, so how Ktor framed the parts is the
+    // only thing left that can explain the parse failure.
+    const head = Buffer.from(bytes.slice(0, 700)).toString("latin1");
     console.error("[mobile/enroll] formData() failed", {
       reason: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
       cause: e instanceof Error && e.cause ? String(e.cause) : undefined,
@@ -66,6 +70,7 @@ export async function POST(request: Request) {
       receivedLength: bytes.length,
       truncated: declared > 0 && bytes.length < declared,
       hasClosingDelimiter: boundary ? tail.includes(`--${boundary}--`) : null,
+      head: JSON.stringify(head),
       tail: JSON.stringify(tail.slice(-80)),
       transferEncoding: request.headers.get("transfer-encoding"),
       user: user.id,
