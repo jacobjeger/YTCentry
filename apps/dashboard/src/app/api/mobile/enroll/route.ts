@@ -15,32 +15,62 @@ export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB, matches the web form
 
+// The app renders an unmapped error code verbatim (Common.kt errorText), so
+// send a sentence rather than a slug — "bad_request" told staff nothing and
+// blamed their input rather than the upload.
+const UPLOAD_INCOMPLETE =
+  "The photo didn't finish uploading. Check the connection and try again.";
+
 export async function POST(request: Request) {
   const user = await bearerUser(request);
   if (!user) return unauthorized();
 
+  // Buffer the body before parsing rather than letting formData() consume the
+  // stream. Two reasons: a truncated upload becomes measurable (declared
+  // Content-Length vs bytes actually received) instead of an opaque
+  // "Failed to parse body as FormData", and re-parsing from a complete buffer
+  // sidesteps stream-level parse failures.
   let form: FormData;
+  const contentType = request.headers.get("content-type") ?? "";
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  let raw: ArrayBuffer;
   try {
-    form = await request.formData();
+    raw = await request.arrayBuffer();
   } catch (e) {
-    // Don't swallow this. A failure here is almost always a truncated or
-    // unparseable upload, and without the reason "bad_request" is unactionable
-    // — it says only that the photo never arrived intact.
+    console.error("[mobile/enroll] could not read body", {
+      reason: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+      declared,
+      user: user.id,
+    });
+    return Response.json({ error: UPLOAD_INCOMPLETE }, { status: 400 });
+  }
+
+  try {
+    form = await new Request("http://form.local/", {
+      method: "POST",
+      headers: { "content-type": contentType },
+      body: raw,
+    }).formData();
+  } catch (e) {
+    // Show whether the bytes arrived and whether the closing delimiter is
+    // there. A short body means the connection dropped; a full body that still
+    // won't parse means the encoding itself is wrong.
+    const bytes = new Uint8Array(raw);
+    const tail = Buffer.from(bytes.slice(Math.max(0, bytes.length - 120))).toString("latin1");
+    const boundary = /boundary=([^;]+)/i.exec(contentType)?.[1] ?? "";
     console.error("[mobile/enroll] formData() failed", {
       reason: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
       cause: e instanceof Error && e.cause ? String(e.cause) : undefined,
-      contentType: request.headers.get("content-type"),
-      contentLength: request.headers.get("content-length"),
+      contentType,
+      declaredLength: declared,
+      receivedLength: bytes.length,
+      truncated: declared > 0 && bytes.length < declared,
+      hasClosingDelimiter: boundary ? tail.includes(`--${boundary}--`) : null,
+      tail: JSON.stringify(tail.slice(-80)),
       transferEncoding: request.headers.get("transfer-encoding"),
       user: user.id,
     });
-    // The app renders an unmapped code verbatim (Common.kt errorText), so send
-    // a sentence rather than a slug — "bad_request" told staff nothing and
-    // pointed at the wrong thing (their input, not the upload).
-    return Response.json(
-      { error: "The photo didn't finish uploading. Check the connection and try again." },
-      { status: 400 },
-    );
+    return Response.json({ error: UPLOAD_INCOMPLETE }, { status: 400 });
   }
 
   const displayName = String(form.get("displayName") ?? "").trim();
