@@ -21,6 +21,58 @@ const MAX_BYTES = 15 * 1024 * 1024; // 15 MB, matches the web form
 const UPLOAD_INCOMPLETE =
   "The photo didn't finish uploading. Check the connection and try again.";
 
+/**
+ * Merge duplicate Content-Disposition headers within each multipart section.
+ *
+ * The Android app passes its own `Content-Disposition: filename="photo.jpg"`
+ * for the photo part, and Ktor emits that IN ADDITION to the one it generates
+ * ("form-data; name=photo"). Two Content-Disposition lines in one part make
+ * undici — and therefore request.formData() — reject the whole body with
+ * "Failed to parse body as FormData", no matter how small or well-formed the
+ * upload otherwise is. Verified by reproducing that exact error locally.
+ *
+ * Repairing server-side fixes every app build already in the field. Only ever
+ * called after a normal parse has failed, so a well-formed upload never goes
+ * near this. Returns null when there was nothing to fix.
+ *
+ * latin1 round-trips bytes 1:1, so the binary payload is preserved exactly.
+ */
+function mergeDuplicateDispositions(body: string, boundary: string): string | null {
+  if (!boundary) return null;
+  const sections = body.split(`--${boundary}`);
+  let changed = false;
+
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i]!;
+    const headerEnd = section.indexOf("\r\n\r\n"); // first blank line = end of part headers
+    if (headerEnd < 0) continue;
+
+    const lines = section.slice(0, headerEnd).split("\r\n");
+    const isDispo = (l: string) => /^content-disposition:/i.test(l);
+    const dispositions = lines.filter(isDispo);
+    if (dispositions.length < 2) continue;
+
+    const merged = dispositions
+      .map((l, idx) => (idx === 0 ? l : l.replace(/^content-disposition:\s*/i, "")))
+      .join("; ");
+
+    let kept = false;
+    const rebuilt = lines
+      .filter((l) => {
+        if (!isDispo(l)) return true;
+        if (kept) return false; // drop the extras
+        kept = true;
+        return true;
+      })
+      .map((l) => (isDispo(l) ? merged : l));
+
+    sections[i] = rebuilt.join("\r\n") + section.slice(headerEnd);
+    changed = true;
+  }
+
+  return changed ? sections.join(`--${boundary}`) : null;
+}
+
 export async function POST(request: Request) {
   const user = await bearerUser(request);
   if (!user) return unauthorized();
@@ -52,30 +104,55 @@ export async function POST(request: Request) {
       body: raw,
     }).formData();
   } catch (e) {
-    // Show whether the bytes arrived and whether the closing delimiter is
-    // there. A short body means the connection dropped; a full body that still
-    // won't parse means the encoding itself is wrong.
     const bytes = new Uint8Array(raw);
-    const tail = Buffer.from(bytes.slice(Math.max(0, bytes.length - 120))).toString("latin1");
-    const boundary = /boundary=([^;]+)/i.exec(contentType)?.[1] ?? "";
-    // The part headers live at the top, before the JPEG payload. The body is
-    // whole and the delimiters are right, so how Ktor framed the parts is the
-    // only thing left that can explain the parse failure.
-    const head = Buffer.from(bytes.slice(0, 700)).toString("latin1");
-    console.error("[mobile/enroll] formData() failed", {
-      reason: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
-      cause: e instanceof Error && e.cause ? String(e.cause) : undefined,
-      contentType,
-      declaredLength: declared,
-      receivedLength: bytes.length,
-      truncated: declared > 0 && bytes.length < declared,
-      hasClosingDelimiter: boundary ? tail.includes(`--${boundary}--`) : null,
-      head: JSON.stringify(head),
-      tail: JSON.stringify(tail.slice(-80)),
-      transferEncoding: request.headers.get("transfer-encoding"),
+    const boundaryForRepair = /boundary=([^;]+)/i.exec(contentType)?.[1]?.trim() ?? "";
+    const repaired = mergeDuplicateDispositions(
+      Buffer.from(bytes).toString("latin1"),
+      boundaryForRepair,
+    );
+    let recovered: FormData | null = null;
+    if (repaired) {
+      try {
+        recovered = await new Request("http://form.local/", {
+          method: "POST",
+          headers: { "content-type": contentType },
+          body: Buffer.from(repaired, "latin1"),
+        }).formData();
+      } catch {
+        recovered = null; // repair didn't help — report the original failure
+      }
+    }
+
+    if (!recovered) {
+      // Show whether the bytes arrived and whether the closing delimiter is
+      // there. A short body means the connection dropped; a full body that
+      // still won't parse means the encoding itself is wrong.
+      const tail = Buffer.from(bytes.slice(Math.max(0, bytes.length - 120))).toString("latin1");
+      // The part headers live at the top, before the JPEG payload.
+      const head = Buffer.from(bytes.slice(0, 700)).toString("latin1");
+      console.error("[mobile/enroll] formData() failed", {
+        reason: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+        cause: e instanceof Error && e.cause ? String(e.cause) : undefined,
+        contentType,
+        declaredLength: declared,
+        receivedLength: bytes.length,
+        truncated: declared > 0 && bytes.length < declared,
+        hasClosingDelimiter: boundaryForRepair
+          ? tail.includes(`--${boundaryForRepair}--`)
+          : null,
+        head: JSON.stringify(head),
+        tail: JSON.stringify(tail.slice(-80)),
+        transferEncoding: request.headers.get("transfer-encoding"),
+        user: user.id,
+      });
+      return Response.json({ error: UPLOAD_INCOMPLETE }, { status: 400 });
+    }
+
+    console.warn("[mobile/enroll] repaired duplicate Content-Disposition headers", {
       user: user.id,
+      bytes: bytes.length,
     });
-    return Response.json({ error: UPLOAD_INCOMPLETE }, { status: 400 });
+    form = recovered;
   }
 
   const displayName = String(form.get("displayName") ?? "").trim();
