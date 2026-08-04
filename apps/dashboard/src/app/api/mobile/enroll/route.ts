@@ -22,51 +22,48 @@ const UPLOAD_INCOMPLETE =
   "The photo didn't finish uploading. Check the connection and try again.";
 
 /**
- * Merge duplicate Content-Disposition headers within each multipart section.
+ * Quote unquoted parameters in each part's Content-Disposition header.
  *
- * The Android app passes its own `Content-Disposition: filename="photo.jpg"`
- * for the photo part, and Ktor emits that IN ADDITION to the one it generates
- * ("form-data; name=photo"). Two Content-Disposition lines in one part make
- * undici — and therefore request.formData() — reject the whole body with
- * "Failed to parse body as FormData", no matter how small or well-formed the
- * upload otherwise is. Verified by reproducing that exact error locally.
+ * Ktor (the Android app's HTTP client) writes `form-data; name=photo`. The
+ * undici bundled with Node 22 — the runtime this image is built on — requires
+ * `name="photo"` and rejects the ENTIRE body otherwise, with exactly
+ * "Failed to parse body as FormData". undici 7 on newer Node accepts the
+ * unquoted form, which is why this only ever reproduced in production.
  *
- * Repairing server-side fixes every app build already in the field. Only ever
- * called after a normal parse has failed, so a well-formed upload never goes
- * near this. Returns null when there was nothing to fix.
+ * Confirmed against undici 6.28 directly: unquoted fails, quoted parses, and
+ * the per-part Content-Length that Ktor also emits is irrelevant either way.
+ *
+ * Repairing here fixes every app build already installed, with no release.
+ * Only called after a normal parse has failed, so well-formed uploads never
+ * touch it. Returns null when there was nothing to change.
  *
  * latin1 round-trips bytes 1:1, so the binary payload is preserved exactly.
  */
-function mergeDuplicateDispositions(body: string, boundary: string): string | null {
+function quoteDispositionParams(body: string, boundary: string): string | null {
   if (!boundary) return null;
   const sections = body.split(`--${boundary}`);
   let changed = false;
 
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i]!;
-    const headerEnd = section.indexOf("\r\n\r\n"); // first blank line = end of part headers
+    const headerEnd = section.indexOf("\r\n\r\n"); // first blank line ends the part headers
     if (headerEnd < 0) continue;
 
-    const lines = section.slice(0, headerEnd).split("\r\n");
-    const isDispo = (l: string) => /^content-disposition:/i.test(l);
-    const dispositions = lines.filter(isDispo);
-    if (dispositions.length < 2) continue;
+    const rebuilt = section
+      .slice(0, headerEnd)
+      .split("\r\n")
+      .map((line) =>
+        /^content-disposition:/i.test(line)
+          ? line.replace(
+              /\b(name|filename)=(?!")([^;\r\n]*)/gi,
+              (_m, key: string, value: string) => `${key}="${value.trim()}"`,
+            )
+          : line,
+      )
+      .join("\r\n");
 
-    const merged = dispositions
-      .map((l, idx) => (idx === 0 ? l : l.replace(/^content-disposition:\s*/i, "")))
-      .join("; ");
-
-    let kept = false;
-    const rebuilt = lines
-      .filter((l) => {
-        if (!isDispo(l)) return true;
-        if (kept) return false; // drop the extras
-        kept = true;
-        return true;
-      })
-      .map((l) => (isDispo(l) ? merged : l));
-
-    sections[i] = rebuilt.join("\r\n") + section.slice(headerEnd);
+    if (rebuilt === section.slice(0, headerEnd)) continue;
+    sections[i] = rebuilt + section.slice(headerEnd);
     changed = true;
   }
 
@@ -106,7 +103,7 @@ export async function POST(request: Request) {
   } catch (e) {
     const bytes = new Uint8Array(raw);
     const boundaryForRepair = /boundary=([^;]+)/i.exec(contentType)?.[1]?.trim() ?? "";
-    const repaired = mergeDuplicateDispositions(
+    const repaired = quoteDispositionParams(
       Buffer.from(bytes).toString("latin1"),
       boundaryForRepair,
     );
@@ -148,7 +145,7 @@ export async function POST(request: Request) {
       return Response.json({ error: UPLOAD_INCOMPLETE }, { status: 400 });
     }
 
-    console.warn("[mobile/enroll] repaired duplicate Content-Disposition headers", {
+    console.warn("[mobile/enroll] quoted Content-Disposition params to parse upload", {
       user: user.id,
       bytes: bytes.length,
     });
