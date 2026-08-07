@@ -152,8 +152,22 @@ export default function RosterManager() {
                   <td className="p-3 font-medium">{r.fullName}</td>
                   <td className="p-3 text-stone-500">{r.shiur ?? ""}</td>
                   <td className="p-3">
-                    {r.hasPhoto ? (
-                      <span className="text-green-600">✓ {t.roster.photo}</span>
+                    {r.hasPhoto && r.enrolleeId ? (
+                      // Thumbnail links to the full image — staff need to see
+                      // the face on file, not just that one exists.
+                      <a
+                        href={`/api/enrollee/${r.enrolleeId}/photo`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={t.roster.viewPhoto}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`/api/enrollee/${r.enrolleeId}/photo`}
+                          alt={r.fullName}
+                          className="w-11 h-11 rounded-lg object-cover bg-stone-100 hover:ring-2 hover:ring-bronze"
+                        />
+                      </a>
                     ) : (
                       <span className="text-stone-400">{t.roster.noPhoto}</span>
                     )}

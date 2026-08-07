@@ -22,6 +22,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   invisible even though their photo was saved.
 - Roster import accepts sheets that split a name across **First name / Last
   name** columns and joins them.
+- The Roster list shows each person's photo as a thumbnail, click to open it
+  full size.
 - An email whose attachment can't be read as a photo now appears in the Review
   Queue with the reason and what was attached, instead of being dropped
   silently. Only Reject is offered, since there's no photo to enrol.
@@ -52,6 +54,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   configured, instead of being stranded.
 - Emailed photos with no usable image are no longer re-read on every poll cycle.
 - Roster table and the manual-add form said "Name column" instead of "Name".
+- **Removing someone who is still waiting for the door now works.** Remove
+  always went to the door first, so with the door offline — the only time these
+  entries exist — it failed before deleting anything and the person stayed
+  listed. Waiting entries are now removed locally and their pending sync is
+  cancelled, so the pusher won't push someone you just removed.
+- Names picked from the roster in the phone app no longer arrive with a "+"
+  instead of a space ("Avromi+Franklin"). Needs a new app build to take effect.
 
 ### Changed
 

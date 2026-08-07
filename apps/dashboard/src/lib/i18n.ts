@@ -261,6 +261,7 @@ export interface Dict {
     statusMatched: string;
     statusEnrolled: string;
     photo: string;
+    viewPhoto: string;
     noPhoto: string;
     downloadSelected: string; // "{n}"
     listEmpty: string;
@@ -323,6 +324,7 @@ export interface Dict {
     download: string;
     confirmRemove: string;
     confirmRemoveLegacy: string;
+    confirmRemoveWaiting: string;
     statusDraft: string;
     statusPending: string;
     statusPushed: string;
@@ -670,6 +672,7 @@ const en: Dict = {
     statusMatched: "Photo received",
     statusEnrolled: "Enrolled",
     photo: "Photo",
+    viewPhoto: "Open the full photo",
     noPhoto: "No photo",
     downloadSelected: "Download {n} photo(s)",
     listEmpty: "No one on the roster yet. Upload a list or add someone above.",
@@ -735,6 +738,8 @@ const en: Dict = {
     confirmRemove: "Remove this person from the door?",
     confirmRemoveLegacy:
       "⚠ This is a PRE-EXISTING record, not added by this system. Deleting it from the door is permanent and could lock them out. Are you sure?",
+    confirmRemoveWaiting:
+      "This person was never sent to the door. Remove them and cancel the pending sync?",
     statusDraft: "Draft",
     statusPending: "Queued",
     statusPushed: "On door",
@@ -1078,6 +1083,7 @@ const he: Dict = {
     statusMatched: "התקבלה תמונה",
     statusEnrolled: "רשום",
     photo: "תמונה",
+    viewPhoto: "פתחו את התמונה המלאה",
     noPhoto: "אין תמונה",
     downloadSelected: "הורדת {n} תמונות",
     listEmpty: "אין עדיין תלמידים ברשימה. העלו רשימה או הוסיפו אדם למעלה.",
@@ -1141,6 +1147,8 @@ const he: Dict = {
     confirmRemove: "להסיר אדם זה מהדלת?",
     confirmRemoveLegacy:
       "⚠ זוהי רשומה קיימת מראש, שלא נוספה על ידי המערכת. מחיקתה מהדלת היא לצמיתות ועלולה לחסום כניסה. בטוחים?",
+    confirmRemoveWaiting:
+      "האדם הזה מעולם לא נשלח לדלת. להסיר אותו ולבטל את השליחה הממתינה?",
     statusDraft: "טיוטה",
     statusPending: "בתור",
     statusPushed: "בדלת",

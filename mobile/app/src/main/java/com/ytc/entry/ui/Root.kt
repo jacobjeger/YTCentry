@@ -130,7 +130,13 @@ private fun MainScaffold(
                     api = api,
                     onUnauthorized = onLogout,
                     onEnroll = { name, rosterId ->
-                        val encoded = java.net.URLEncoder.encode(name, "UTF-8")
+                        // Uri.encode, NOT URLEncoder.encode. URLEncoder does
+                        // form encoding, which writes a space as "+" — and the
+                        // nav argument is read back with %XX decoding only, so
+                        // the "+" survives into the name ("Avromi+Franklin")
+                        // and gets pushed to the door that way. Uri.encode
+                        // writes %20, which decodes back to a space.
+                        val encoded = android.net.Uri.encode(name)
                         nav.navigate("add?name=$encoded&rosterId=$rosterId")
                     },
                 )

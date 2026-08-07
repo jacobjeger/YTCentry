@@ -375,6 +375,48 @@ export async function repushEnrollee(formData: FormData) {
 }
 
 /** Queue a DELETE; completeJob marks the enrollee REMOVED once the door confirms. */
+/**
+ * Remove someone who never reached the door.
+ *
+ * deleteFromDoor can't do this: it calls the device first, so with the door
+ * offline (exactly when these rows exist) it throws before the local cleanup
+ * and the person stays listed forever. There is nothing on the door to delete
+ * here, so this is purely local.
+ *
+ * The per-door rows must go too, or the pusher's retry loop happily pushes
+ * someone we just removed the moment the door returns.
+ */
+export async function removeWaitingEnrollee(formData: FormData) {
+  const user = await requireUser();
+  const id = String(formData.get("enrolleeId") ?? "").trim();
+  if (!id) return;
+  const e = await prisma.enrollee.findUnique({ where: { id } });
+  if (!e) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.enrolleeDevice.deleteMany({ where: { enrolleeId: id } });
+    await tx.pushJob.deleteMany({ where: { enrolleeId: id } });
+    // Free the roster entry so the person can be added again.
+    await tx.rosterEntry.updateMany({
+      where: { enrolleeId: id },
+      data: { enrolleeId: null, status: "AWAITING_PHOTO" },
+    });
+    await tx.enrollee.update({
+      where: { id },
+      data: { status: "REMOVED", lastError: null },
+    });
+  });
+
+  await audit({
+    actorId: user.id,
+    action: "enrollee.remove",
+    targetType: "Enrollee",
+    targetId: id,
+    meta: { akuvoxUserId: e.akuvoxUserId, neverPushed: true },
+  });
+  revalidatePath("/directory");
+}
+
 export async function removeEnrollee(formData: FormData) {
   const user = await requireUser();
   const e = await loadManaged(String(formData.get("id")));

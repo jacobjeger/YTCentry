@@ -6,6 +6,7 @@ import {
   refreshDirectory,
   listDoors,
   deleteFromDoor,
+  removeWaitingEnrollee,
   repushEnrollee,
   updatePhotoOnDoor,
   type DirRow,
@@ -376,17 +377,28 @@ function Row({
             </button>
           </form>
 
+          {/* Someone still waiting isn't on the door, so the door-delete path
+              would fail (and does, while the door is down) and leave them
+              listed. Remove them locally instead. */}
           <form
-            action={deleteFromDoor}
+            action={r.pending ? removeWaitingEnrollee : deleteFromDoor}
             onSubmit={(e) => {
-              const msg = r.legacy
-                ? t.directory.confirmRemoveLegacy
-                : t.directory.confirmRemove;
+              const msg = r.pending
+                ? t.directory.confirmRemoveWaiting
+                : r.legacy
+                  ? t.directory.confirmRemoveLegacy
+                  : t.directory.confirmRemove;
               if (!confirm(msg)) e.preventDefault();
             }}
           >
-            <input type="hidden" name="userID" value={r.userID} />
-            <input type="hidden" name="deviceId" value={deviceId} />
+            {r.pending ? (
+              <input type="hidden" name="enrolleeId" value={r.enrolleeId ?? ""} />
+            ) : (
+              <>
+                <input type="hidden" name="userID" value={r.userID} />
+                <input type="hidden" name="deviceId" value={deviceId} />
+              </>
+            )}
             <button className="text-xs text-red-600 hover:underline">
               {t.directory.remove}
             </button>
