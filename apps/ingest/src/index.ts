@@ -30,15 +30,46 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Returns null for PDFs that hold no JPEG (vector or a Flate/JPX-coded bitmap);
  * those genuinely need rendering, which is out of scope here.
  */
+const SOI = Buffer.from([0xff, 0xd8, 0xff]);
+const EOI = Buffer.from([0xff, 0xd9]);
+
+/**
+ * Walk the JPEG marker chain and confirm it reaches a frame header (SOF) and
+ * then the scan (SOS).
+ *
+ * Merely spotting an SOF byte pair is not enough: in a few kB of arbitrary
+ * binary an `FF Cx` pair turns up by chance, so a scan-for-bytes approach
+ * happily "finds" images in random data. Following the segment lengths makes
+ * that essentially impossible — every step must land exactly on a 0xFF.
+ */
+function looksLikeJpeg(b: Buffer): boolean {
+  if (b.length < 1024 || b[0] !== 0xff || b[1] !== 0xd8) return false;
+  let i = 2;
+  let sawFrame = false;
+  while (i + 3 < b.length) {
+    if (b[i] !== 0xff) return false;
+    const m = b[i + 1]!;
+    if (m === 0xff) { i++; continue; }              // fill byte
+    if (m === 0x01 || (m >= 0xd0 && m <= 0xd8)) { i += 2; continue; } // standalone
+    if (m === 0xda) return sawFrame;                // start of scan
+    const len = (b[i + 2]! << 8) | b[i + 3]!;
+    if (len < 2) return false;
+    if ((m >= 0xc0 && m <= 0xc3) || (m >= 0xc5 && m <= 0xc7) || (m >= 0xc9 && m <= 0xcb)) {
+      sawFrame = true;
+    }
+    i += 2 + len;
+  }
+  return false;
+}
+
 function jpegFromPdf(buf: Buffer): Uint8Array | null {
+  // Preferred: anchor on the image filter, which bounds the search precisely.
   let from = 0;
   for (;;) {
     const marker = buf.indexOf("/DCTDecode", from, "latin1");
-    if (marker < 0) return null;
-
-    // The stream data starts after the next `stream` keyword and its EOL.
+    if (marker < 0) break;
     const kw = buf.indexOf("stream", marker, "latin1");
-    if (kw < 0) return null;
+    if (kw < 0) break;
     let start = kw + "stream".length;
     if (buf[start] === 0x0d) start++; // CR
     if (buf[start] === 0x0a) start++; // LF
@@ -46,14 +77,41 @@ function jpegFromPdf(buf: Buffer): Uint8Array | null {
     const end = buf.indexOf("endstream", start, "latin1");
     if (end > start) {
       // Trust the JPEG's own markers over the stream bounds — some writers pad.
-      const soi = buf.indexOf(Buffer.from([0xff, 0xd8, 0xff]), start);
+      const soi = buf.indexOf(SOI, start);
       if (soi >= start && soi < end) {
-        const eoi = buf.lastIndexOf(Buffer.from([0xff, 0xd9]), end);
+        const eoi = buf.lastIndexOf(EOI, end);
         if (eoi > soi) return new Uint8Array(buf.subarray(soi, eoi + 2));
       }
     }
     from = marker + 1; // that one didn't pan out — try the next image
   }
+
+  // Fallback: no plain "/DCTDecode" anywhere. Modern writers put image
+  // dictionaries inside compressed object streams, so the filter name isn't
+  // visible as text — but the JPEG payload itself is never compressed again
+  // and still sits in the file verbatim. Scan for it and take the largest
+  // candidate that actually parses as a JPEG frame.
+  let best: Buffer | null = null;
+  let at = buf.indexOf(SOI);
+  while (at >= 0) {
+    const eoi = buf.indexOf(EOI, at + 2);
+    if (eoi < 0) break;
+    const candidate = buf.subarray(at, eoi + 2);
+    if (looksLikeJpeg(candidate) && (!best || candidate.length > best.length)) {
+      best = candidate;
+    }
+    at = buf.indexOf(SOI, eoi + 2);
+  }
+  return best ? new Uint8Array(best) : null;
+}
+
+/** What a PDF we couldn't read actually contains — so a failure is diagnosable
+ *  instead of just "image=NONE". */
+function describePdf(buf: Buffer): string {
+  const filters = ["/DCTDecode", "/JPXDecode", "/FlateDecode", "/CCITTFaxDecode", "/JBIG2Decode"]
+    .filter((f) => buf.indexOf(f, 0, "latin1") >= 0)
+    .join(" ");
+  return `${(buf.length / 1024).toFixed(0)}kB filters=[${filters || "none-visible"}] soi=${buf.indexOf(SOI) >= 0} enc=${buf.indexOf("/Encrypt", 0, "latin1") >= 0}`;
 }
 
 /** Find a face image in a message: a file/inline attachment, a JPEG embedded in
@@ -66,8 +124,10 @@ function extractImage(parsed: ParsedMail): { bytes: Uint8Array; mime: string } |
   }
   for (const a of parsed.attachments ?? []) {
     if (a.contentType === "application/pdf" && a.content) {
-      const jpeg = jpegFromPdf(a.content as Buffer);
+      const pdf = a.content as Buffer;
+      const jpeg = jpegFromPdf(pdf);
       if (jpeg) return { bytes: jpeg, mime: "image/jpeg" };
+      console.log(`[ingest] pdf "${a.filename ?? "?"}" no JPEG inside — ${describePdf(pdf)}`);
     }
   }
   const html = parsed.html || "";
