@@ -69,7 +69,9 @@ export default async function ReviewPage({
       parsedName: s.parsedName,
       faceValid: s.faceValid,
       faceNote: s.faceNote,
-      photoUrl: await signedPhotoUrl(s.imagePath, 600),
+      // An unusable submission (unreadable attachment) has no stored image —
+      // signing an empty key would render a broken thumbnail.
+      photoUrl: s.imagePath ? await signedPhotoUrl(s.imagePath, 600) : null,
       candidates: Array.isArray(s.matchCandidates)
         ? (s.matchCandidates as { studentId: string; name: string; score: number }[])
         : [],

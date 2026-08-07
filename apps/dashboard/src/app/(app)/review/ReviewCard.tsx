@@ -17,7 +17,8 @@ export interface ReviewItem {
   parsedName: string | null;
   faceValid: boolean | null;
   faceNote: string | null;
-  photoUrl: string;
+  /** null when the email had no usable image — nothing was stored. */
+  photoUrl: string | null;
   candidates: { studentId: string; name: string; score: number }[];
 }
 
@@ -68,12 +69,23 @@ export default function ReviewCard({
           aria-label={t.review.selectAll}
         />
       ) : null}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={item.photoUrl}
-        alt={t.review.submissionAlt}
-        className="w-32 h-32 rounded-lg object-cover bg-stone-100 shrink-0"
-      />
+      {item.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.photoUrl}
+          alt={t.review.submissionAlt}
+          className="w-32 h-32 rounded-lg object-cover bg-stone-100 shrink-0"
+        />
+      ) : (
+        <div className="w-32 h-32 rounded-lg bg-amber-50 border border-amber-200 shrink-0 flex flex-col items-center justify-center gap-1 text-center px-2">
+          <span className="text-2xl" aria-hidden>
+            ⚠
+          </span>
+          <span className="text-xs font-medium text-amber-900">
+            {t.review.noImageBadge}
+          </span>
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span
@@ -89,11 +101,16 @@ export default function ReviewCard({
         </div>
         {item.faceValid === false ? (
           <p className="text-sm text-amber-700 mb-2">
-            ⚠ {t.review.noFaceWarn}
-            {item.faceNote ? ` (${item.faceNote})` : ""}
+            ⚠ {item.photoUrl ? t.review.noFaceWarn : t.review.unusableWarn}
+            {item.faceNote ? ` ${item.faceNote}` : ""}
           </p>
         ) : null}
 
+        {/* Nothing was stored, so there is no face to enrol or to graft onto an
+            existing person — only rejecting makes sense. Showing the approve
+            controls would just produce a confusing failure. */}
+        {!item.photoUrl ? null : (
+        <>
         {/* Primary: type a name and add (no roster needed). */}
         <form action={nameAction} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="submissionId" value={item.id} />
@@ -159,6 +176,8 @@ export default function ReviewCard({
 
         {/* Tertiary: replace an existing person's face with this photo. */}
         <UpdateExistingPerson submissionId={item.id} />
+        </>
+        )}
 
         {error ? <p className="text-sm text-red-600 mt-2">{error}</p> : null}
       </div>

@@ -22,6 +22,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   invisible even though their photo was saved.
 - Roster import accepts sheets that split a name across **First name / Last
   name** columns and joins them.
+- An email whose attachment can't be read as a photo now appears in the Review
+  Queue with the reason and what was attached, instead of being dropped
+  silently. Only Reject is offered, since there's no photo to enrol.
 - Emailed photos sent as a **PDF attachment** are now accepted — the embedded
   JPEG is lifted out of the PDF, so "Print to PDF" and scanner-app submissions
   work instead of being silently ignored.

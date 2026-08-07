@@ -283,6 +283,8 @@ export interface Dict {
     otherIdPlaceholder: string;
     matchById: string;
     noFaceWarn: string;
+    unusableWarn: string;
+    noImageBadge: string;
     rosterMissing: string;
     approvedMsg: string; // "{name}" "{userId}"
     noCandidates: string;
@@ -691,6 +693,8 @@ const en: Dict = {
     otherIdPlaceholder: "Student ID",
     matchById: "Approve",
     noFaceWarn: "Face check failed — review before approving.",
+    unusableWarn: "Couldn't read a photo from this email.",
+    noImageBadge: "No photo",
     rosterMissing: "No roster entry with that student ID.",
     approvedMsg: "Approved {name} → door ID {userId}.",
     noCandidates: "No roster matches. Enter a student ID to match.",
@@ -1096,6 +1100,8 @@ const he: Dict = {
     otherIdPlaceholder: "מספר תלמיד",
     matchById: "אישור",
     noFaceWarn: "בדיקת הפנים נכשלה — בדקו לפני אישור.",
+    unusableWarn: "לא נמצאה תמונה שמישה במייל הזה.",
+    noImageBadge: "אין תמונה",
     rosterMissing: "אין ברשימה תלמיד עם מספר זה.",
     approvedMsg: "אושר {name} ← מזהה דלת {userId}.",
     noCandidates: "אין התאמות ברשימה. הזינו מספר תלמיד להתאמה.",

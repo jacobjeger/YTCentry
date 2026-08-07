@@ -21,10 +21,12 @@ export interface IncomingMessage {
   subject: string;
   image: Uint8Array | null;
   imageMime?: string;
+  /** What was attached, so an unusable file can be described to staff. */
+  attachments?: { type: string; name?: string }[];
 }
 
 export interface ProcessResult {
-  status: "skipped_duplicate" | "skipped_no_image" | "created";
+  status: "skipped_duplicate" | "skipped_no_image" | "created" | "unusable";
   submissionId?: string;
   decision?: string;
 }
@@ -58,9 +60,42 @@ export async function processMessage(
   });
   if (existing) return { status: "skipped_duplicate" };
 
-  if (!msg.image) return { status: "skipped_no_image" };
-
   const { studentId, name } = parseSubject(msg.subject);
+
+  if (!msg.image) {
+    // Someone attached something we couldn't read a photo out of. Silently
+    // dropping it meant the sender waited on an enrollment that was never
+    // coming and nobody knew — so record it for the Review Queue, with what
+    // was actually attached. A mail with NO attachment at all is just noise in
+    // a shared mailbox and is still skipped.
+    const atts = msg.attachments ?? [];
+    if (atts.length === 0) return { status: "skipped_no_image" };
+
+    const described = atts
+      .map((a) => (a.name ? `${a.name} (${a.type})` : a.type))
+      .join(", ");
+    try {
+      const sub = await prisma.photoSubmission.create({
+        data: {
+          gmailMessageId: msg.messageId,
+          fromAddress: msg.from,
+          subjectRaw: msg.subject,
+          parsedName: name ?? null,
+          imagePath: "", // nothing stored — the card renders a placeholder
+          faceValid: false,
+          faceNote: `No usable photo in this email. Attached: ${described}. Ask the sender for a JPEG or PNG.`,
+          matchCandidates: [],
+          status: "NEEDS_MATCH",
+        },
+      });
+      return { status: "unusable", submissionId: sub.id };
+    } catch (e) {
+      if (typeof e === "object" && e && "code" in e && (e as { code: string }).code === "P2002") {
+        return { status: "skipped_duplicate" };
+      }
+      throw e;
+    }
+  }
 
   // Validate + normalize the face; keep the submission even if it fails so a
   // human can see why (faceValid=false, faceNote).

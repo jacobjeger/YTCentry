@@ -137,9 +137,15 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
           subject: parsed.subject ?? "",
           image: img?.bytes ?? null,
           imageMime: img?.mime,
+          attachments: (parsed.attachments ?? []).map((a) => ({
+            type: a.contentType ?? "unknown",
+            name: a.filename,
+          })),
         };
         const res = await processMessage(incoming);
-        if (!img) skipped.add(c.messageId); // nothing usable — don't re-read it every cycle
+        // Only remember genuinely unrecorded messages; an "unusable" one now
+        // has a row and dedupes on its own.
+        if (res.status === "skipped_no_image") skipped.add(c.messageId);
         console.log(`[ingest] "${incoming.subject}" → ${res.status} ${res.decision ?? ""}`);
       } catch (e) {
         console.warn(`[ingest] message uid ${c.uid} failed:`, e);
