@@ -150,6 +150,13 @@ function extractImage(parsed: ParsedMail): { bytes: Uint8Array; mime: string } |
  */
 const skipped = new Set<string>();
 
+const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+/** "7 Aug" — spelled out by hand so it doesn't depend on the container's ICU. */
+function today(): string {
+  const d = new Date();
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
 /** Process recent messages (any read state) on an already-open mailbox, deduped
  *  on Message-ID so re-scans are harmless. */
 let processing = false;
@@ -220,11 +227,25 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
                 .map((a) => (a.name ? `${a.name} (${a.type})` : a.type))
                 .join(", "),
             });
-            console.log(
-              why
-                ? `[ingest] no reply sent to ${incoming.from} — ${why}`
-                : `[ingest] asked ${incoming.from} to resend as a photo`,
-            );
+            if (why) {
+              console.log(`[ingest] no reply sent to ${incoming.from} — ${why}`);
+            } else {
+              console.log(`[ingest] asked ${incoming.from} to resend as a photo`);
+              // Say so in the Review Queue, or staff can't tell whether the
+              // sender has been chased and will chase them again.
+              if (res.submissionId) {
+                await prisma.photoSubmission.update({
+                  where: { id: res.submissionId },
+                  data: {
+                    faceNote: `Emailed the sender on ${today()} asking for a photo — awaiting a new picture. They sent: ${
+                      (incoming.attachments ?? [])
+                        .map((a) => (a.name ? `${a.name} (${a.type})` : a.type))
+                        .join(", ")
+                    }.`,
+                  },
+                });
+              }
+            }
           } catch (e) {
             // A failed reply must not fail the ingestion — the queue entry is
             // still there for staff either way.
