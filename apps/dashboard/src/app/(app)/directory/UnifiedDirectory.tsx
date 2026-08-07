@@ -42,6 +42,7 @@ export default function UnifiedDirectory() {
   const [doors, setDoors] = useState<DoorOption[]>([]);
   const [door, setDoor] = useState<string>("");
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState(0);
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export default function UnifiedDirectory() {
     if (res.error) setError(res.error);
     else {
       setRows(res.rows ?? []);
+      setWaiting(res.waiting ?? 0);
       setSyncedAt(res.syncedAt ?? null);
     }
   }
@@ -80,6 +82,7 @@ export default function UnifiedDirectory() {
       if (res.error) setError(res.error);
       else {
         setRows(res.rows ?? []);
+        setWaiting(res.waiting ?? 0);
         setSyncedAt(res.syncedAt ?? null);
       }
     });
@@ -181,8 +184,13 @@ export default function UnifiedDirectory() {
               <option value="za">{t.directory.sortNameZa}</option>
             </select>
             <span className="text-sm text-stone-500 whitespace-nowrap">
-              {fmt(t.directory.totalOnDoor, { n: rows.length })}
+              {fmt(t.directory.totalOnDoor, { n: rows.length - waiting })}
             </span>
+            {waiting > 0 ? (
+              <span className="text-sm rounded-full bg-amber-100 px-2.5 py-0.5 font-medium text-amber-900 whitespace-nowrap">
+                {fmt(t.directory.waitingCount, { n: waiting })}
+              </span>
+            ) : null}
             <button
               onClick={doRefresh}
               disabled={refreshing}
@@ -276,7 +284,7 @@ function Row({
   );
 
   return (
-    <tr>
+    <tr className={r.pending ? "bg-amber-50/50" : undefined}>
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-3">
           {r.managed && r.enrolleeId ? (
@@ -303,7 +311,14 @@ function Row({
         )}
       </td>
       <td className="px-4 py-2.5">
-        {r.managed ? (
+        {r.pending ? (
+          <span
+            className="text-xs rounded-full bg-amber-100 text-amber-900 px-2 py-0.5"
+            title={r.lastError ?? ""}
+          >
+            {t.directory.waitingForDoor}
+          </span>
+        ) : r.managed ? (
           <span className="text-xs rounded-full bg-bronze/10 text-bronze-dark px-2 py-0.5">
             {t.directory.managedHere}
           </span>

@@ -47,6 +47,10 @@ export interface DirRow {
   shiur?: string | null;
   pin?: string | null;
   group?: string | null;
+  /** Enrolled here but not on the door yet — waiting for it to come back. */
+  pending?: boolean;
+  /** Why the last push didn't land (only set when pending). */
+  lastError?: string | null;
 }
 
 /** One unified view: EVERYONE on the door (live), merged with our records. */
@@ -65,6 +69,8 @@ async function resolveDeviceId(deviceId?: string): Promise<string | null> {
 export async function loadFullDirectory(deviceId?: string): Promise<{
   rows?: DirRow[];
   total?: number;
+  /** how many of `rows` are enrolled-but-not-on-the-door */
+  waiting?: number;
   syncedAt?: string | null;
   error?: string;
 }> {
@@ -102,7 +108,43 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
         };
       })
       .sort((a, b) => Number(a.userID) - Number(b.userID));
-    return { rows, total: rows.length, syncedAt: cached.syncedAt?.toISOString() ?? null };
+
+    // People we enrolled who never reached the door have no cache row, so the
+    // merge above drops them entirely — they were invisible here even though
+    // their photo is saved and the pusher is retrying them. Surface them at the
+    // top, flagged, so staff can see who is still waiting and view the photo.
+    const onDoor = new Set(cached.rows.map((u) => u.userID));
+    const waiting: DirRow[] = enrollees
+      .filter(
+        (e) =>
+          e.status !== "REMOVED" &&
+          e.status !== "PUSHED" &&
+          !onDoor.has(String(e.akuvoxUserId)),
+      )
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map((e) => ({
+        userID: String(e.akuvoxUserId),
+        name: e.displayName,
+        hasFaceOnDevice: false,
+        managed: true,
+        legacy: false,
+        enrolleeId: e.id,
+        status: e.status,
+        studentId: e.studentId ?? null,
+        shiur: e.shiur ?? null,
+        pin: e.pin ?? null,
+        group: e.groupName ?? null,
+        pending: true,
+        lastError: e.lastError,
+      }));
+
+    const all = [...waiting, ...rows];
+    return {
+      rows: all,
+      total: all.length,
+      waiting: waiting.length,
+      syncedAt: cached.syncedAt?.toISOString() ?? null,
+    };
   } catch (e) {
     return { error: describeDeviceError(e, "directory load") };
   }

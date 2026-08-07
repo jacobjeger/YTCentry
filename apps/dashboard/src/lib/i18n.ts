@@ -335,6 +335,8 @@ export interface Dict {
     yes: string;
     no: string;
     managedHere: string;
+    waitingForDoor: string;
+    waitingCount: string; // "{n}"
     legacy: string;
     totalOnDoor: string; // "{n}"
     back: string;
@@ -743,6 +745,8 @@ const en: Dict = {
     yes: "Yes",
     no: "No",
     managedHere: "Managed here",
+    waitingForDoor: "Waiting for door",
+    waitingCount: "{n} waiting for the door",
     legacy: "Legacy",
     totalOnDoor: "{n} people on the door",
     back: "← Back to directory",
@@ -1145,6 +1149,8 @@ const he: Dict = {
     yes: "כן",
     no: "לא",
     managedHere: "מנוהל כאן",
+    waitingForDoor: "ממתין לדלת",
+    waitingCount: "{n} ממתינים לדלת",
     legacy: "ישן",
     totalOnDoor: "{n} אנשים בדלת",
     back: "← חזרה למדריך",

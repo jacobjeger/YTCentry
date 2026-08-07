@@ -19,12 +19,55 @@ process.on("SIGTERM", () => (running = false));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Find a face image in a message: a file/inline attachment, else a base64
- *  data: URI embedded in the HTML body (pasted/inserted photos). */
+/**
+ * Pull the first embedded JPEG out of a PDF.
+ *
+ * Parents send photos as PDFs constantly — "Print to PDF", a scanner app, or
+ * iOS wrapping an image on share. Those PDFs don't re-encode: the original
+ * JPEG sits in the file verbatim as a /DCTDecode stream, so it can be lifted
+ * out byte-for-byte with no rasterizer and no new dependency.
+ *
+ * Returns null for PDFs that hold no JPEG (vector or a Flate/JPX-coded bitmap);
+ * those genuinely need rendering, which is out of scope here.
+ */
+function jpegFromPdf(buf: Buffer): Uint8Array | null {
+  let from = 0;
+  for (;;) {
+    const marker = buf.indexOf("/DCTDecode", from, "latin1");
+    if (marker < 0) return null;
+
+    // The stream data starts after the next `stream` keyword and its EOL.
+    const kw = buf.indexOf("stream", marker, "latin1");
+    if (kw < 0) return null;
+    let start = kw + "stream".length;
+    if (buf[start] === 0x0d) start++; // CR
+    if (buf[start] === 0x0a) start++; // LF
+
+    const end = buf.indexOf("endstream", start, "latin1");
+    if (end > start) {
+      // Trust the JPEG's own markers over the stream bounds — some writers pad.
+      const soi = buf.indexOf(Buffer.from([0xff, 0xd8, 0xff]), start);
+      if (soi >= start && soi < end) {
+        const eoi = buf.lastIndexOf(Buffer.from([0xff, 0xd9]), end);
+        if (eoi > soi) return new Uint8Array(buf.subarray(soi, eoi + 2));
+      }
+    }
+    from = marker + 1; // that one didn't pan out — try the next image
+  }
+}
+
+/** Find a face image in a message: a file/inline attachment, a JPEG embedded in
+ *  a PDF attachment, else a base64 data: URI in the HTML body (pasted photos). */
 function extractImage(parsed: ParsedMail): { bytes: Uint8Array; mime: string } | null {
   for (const a of parsed.attachments ?? []) {
     if (a.contentType?.startsWith("image/") && a.content) {
       return { bytes: new Uint8Array(a.content), mime: a.contentType };
+    }
+  }
+  for (const a of parsed.attachments ?? []) {
+    if (a.contentType === "application/pdf" && a.content) {
+      const jpeg = jpegFromPdf(a.content as Buffer);
+      if (jpeg) return { bytes: jpeg, mime: "image/jpeg" };
     }
   }
   const html = parsed.html || "";
@@ -34,6 +77,17 @@ function extractImage(parsed: ParsedMail): { bytes: Uint8Array; mime: string } |
   }
   return null;
 }
+
+/**
+ * Messages we looked at and could do nothing with (no image anywhere).
+ *
+ * Dedup normally rides on a PhotoSubmission row, but a skipped message never
+ * creates one — so every poll re-fetched and re-parsed it forever. One PDF-only
+ * email was being re-read every cycle, filling the log and doing the work again
+ * each time. In memory is enough: on restart it is re-examined once, which is
+ * exactly what we want after a deploy that can handle a new attachment type.
+ */
+const skipped = new Set<string>();
 
 /** Process recent messages (any read state) on an already-open mailbox, deduped
  *  on Message-ID so re-scans are harmless. */
@@ -62,7 +116,9 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
         })
       ).map((r) => r.gmailMessageId),
     );
-    const fresh = candidates.filter((c) => !seen.has(c.messageId));
+    const fresh = candidates.filter(
+      (c) => !seen.has(c.messageId) && !skipped.has(c.messageId),
+    );
 
     for (const c of fresh) {
       try {
@@ -83,6 +139,7 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
           imageMime: img?.mime,
         };
         const res = await processMessage(incoming);
+        if (!img) skipped.add(c.messageId); // nothing usable — don't re-read it every cycle
         console.log(`[ingest] "${incoming.subject}" → ${res.status} ${res.decision ?? ""}`);
       } catch (e) {
         console.warn(`[ingest] message uid ${c.uid} failed:`, e);
