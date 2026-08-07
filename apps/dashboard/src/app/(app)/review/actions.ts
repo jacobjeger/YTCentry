@@ -192,6 +192,27 @@ export async function approveSubmission(
   }
 }
 
+/**
+ * Find the roster entry a typed name unambiguously refers to.
+ *
+ * Compares sorted name tokens, so "Josefovic Dovi" matches "Dovi Josefovic" —
+ * emailed subjects routinely put the surname first. Only returns a match when
+ * exactly ONE roster entry fits: two talmidim with the same name must stay a
+ * human decision rather than a coin toss.
+ */
+async function rosterEntryForName(displayName: string) {
+  const key = (s: string) => normalizeName(s).split(" ").filter(Boolean).sort().join(" ");
+  const want = key(displayName);
+  if (!want) return null;
+
+  const rows = await prisma.rosterEntry.findMany({
+    where: { enrolleeId: null, status: { not: "ENROLLED" } },
+    select: { id: true, studentId: true, fullName: true, normalizedName: true, shiur: true, phone: true },
+  });
+  const hits = rows.filter((r) => key(r.normalizedName) === want);
+  return hits.length === 1 ? hits[0]! : null;
+}
+
 /** Enroll directly with a typed name (no roster needed) — for denied scans and
  *  emailed photos with no roster match. */
 export async function enrollByName(
@@ -221,18 +242,32 @@ export async function enrollByName(
     return { error: t.common.error };
   }
 
+  // Adding by name used to leave the roster untouched, so the person was on
+  // the door while the roster still said "Needs photo" and staff chased them
+  // for a picture they'd already sent. Link it when the name clearly matches.
+  const roster = await rosterEntryForName(displayName);
+
   try {
     const { enrollee, pushed, deviceError } = await enrollPerson({
       displayName,
       groupName,
       pin,
-      source: "MANUAL",
+      studentId: roster?.studentId,
+      shiur: roster?.shiur ?? undefined,
+      phone: roster?.phone ?? undefined,
+      source: roster ? "EMAIL" : "MANUAL",
+      rosterEntryId: roster?.id,
       image: bytes,
       actorId: user.id,
     });
     await prisma.photoSubmission.update({
       where: { id: submissionId },
-      data: { status: "APPROVED", reviewedById: user.id, reviewedAt: new Date() },
+      data: {
+        status: "APPROVED",
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+        rosterEntryId: roster?.id ?? null,
+      },
     });
     await audit({
       actorId: user.id,

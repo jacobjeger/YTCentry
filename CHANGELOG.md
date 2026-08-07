@@ -62,6 +62,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   configured, instead of being stranded.
 - Emailed photos with no usable image are no longer re-read on every poll cycle.
 - Roster table and the manual-add form said "Name column" instead of "Name".
+- Approving a photo by typing a name now links the matching student on the
+  roster, so they stop showing as "Needs photo" once they're on the door.
+  Matches regardless of name order ("Josefovic Dovi" = "Dovi Josefovic"), and
+  leaves it alone if two students share a name.
 - **Removing someone who is still waiting for the door now works.** Remove
   always went to the door first, so with the door offline — the only time these
   entries exist — it failed before deleting anything and the person stayed
