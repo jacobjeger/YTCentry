@@ -83,7 +83,9 @@ export async function processMessage(
           parsedName: name ?? null,
           imagePath: "", // nothing stored — the card renders a placeholder
           faceValid: false,
-          faceNote: `No usable photo in this email. Attached: ${described}. Ask the sender for a JPEG or PNG.`,
+          // The card already prefixes "Couldn't read a photo from this email",
+          // so start at the detail rather than repeating the headline.
+          faceNote: `Attached: ${described}. Ask the sender to resend it as a JPEG or PNG.`,
           matchCandidates: [],
           status: "NEEDS_MATCH",
         },
