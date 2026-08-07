@@ -12,6 +12,7 @@ import { simpleParser, type ParsedMail } from "mailparser";
 import { prisma } from "@ytc/core";
 import { loadConfig, type IngestConfig } from "./config";
 import { processMessage, type IncomingMessage } from "./processMessage";
+import { replyUnusable } from "./reply";
 
 let running = true;
 process.on("SIGINT", () => (running = false));
@@ -206,6 +207,30 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
         // Only remember genuinely unrecorded messages; an "unusable" one now
         // has a row and dedupes on its own.
         if (res.status === "skipped_no_image") skipped.add(c.messageId);
+
+        // Ask the sender for a usable photo. Only on the transition to
+        // "unusable" (i.e. the row was just created), so one reply per email.
+        if (res.status === "unusable") {
+          try {
+            const why = await replyUnusable(cfg, {
+              to: incoming.from,
+              subject: incoming.subject,
+              messageId: c.messageId,
+              attached: (incoming.attachments ?? [])
+                .map((a) => (a.name ? `${a.name} (${a.type})` : a.type))
+                .join(", "),
+            });
+            console.log(
+              why
+                ? `[ingest] no reply sent to ${incoming.from} — ${why}`
+                : `[ingest] asked ${incoming.from} to resend as a photo`,
+            );
+          } catch (e) {
+            // A failed reply must not fail the ingestion — the queue entry is
+            // still there for staff either way.
+            console.warn("[ingest] reply failed:", e instanceof Error ? e.message : e);
+          }
+        }
         console.log(`[ingest] "${incoming.subject}" → ${res.status} ${res.decision ?? ""}`);
       } catch (e) {
         console.warn(`[ingest] message uid ${c.uid} failed:`, e);

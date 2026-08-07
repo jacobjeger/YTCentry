@@ -30,6 +30,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 - An email whose attachment can't be read as a photo now appears in the Review
   Queue with the reason and what was attached, instead of being dropped
   silently. Only Reject is offered, since there's no photo to enrol.
+- The sender is also **replied to automatically**, in English and Hebrew,
+  asking them to resend the picture as a photo. One reply per email, never to
+  automated senders. Set `REPLY_TO_UNUSABLE=false` to turn it off.
 - Emailed photos sent as a **PDF attachment** are now accepted when the PDF
   wraps a JPEG, which is what phones and scanner apps produce — the JPEG is
   lifted out as-is. A PDF that stores the picture as a raw bitmap (some

@@ -11,10 +11,12 @@
   "dependencies": {
     "@ytc/core": "*",
     "imapflow": "^1.0.171",
-    "mailparser": "^3.7.2"
+    "mailparser": "^3.7.2",
+    "nodemailer": "^9.0.1"
   },
   "devDependencies": {
     "@types/mailparser": "^3.4.5",
+    "@types/nodemailer": "^6.4.17",
     "@types/node": "^20",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
