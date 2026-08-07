@@ -30,9 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 - An email whose attachment can't be read as a photo now appears in the Review
   Queue with the reason and what was attached, instead of being dropped
   silently. Only Reject is offered, since there's no photo to enrol.
-- Emailed photos sent as a **PDF attachment** are now accepted — the embedded
-  JPEG is lifted out of the PDF, so "Print to PDF" and scanner-app submissions
-  work instead of being silently ignored.
+- Emailed photos sent as a **PDF attachment** are now accepted when the PDF
+  wraps a JPEG, which is what phones and scanner apps produce — the JPEG is
+  lifted out as-is. A PDF that stores the picture as a raw bitmap (some
+  "Print to PDF" output) still can't be read; it lands in the Review Queue as
+  unusable, naming the file, and the sender should be asked for a photo.
 
 ### Fixed
 
