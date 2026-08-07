@@ -301,6 +301,10 @@ export interface Dict {
     orMatchRoster: string;
     submissionAlt: string;
     updateExisting: string;
+    pickRoster: string;
+    pickRosterSearch: string;
+    pickRosterNone: string;
+    openFull: string;
     updateSearch: string;
     updateBtn: string;
     updatedMsg: string;
@@ -712,6 +716,10 @@ const en: Dict = {
     needName: "Enter a name.",
     orMatchRoster: "or match to the roster",
     updateExisting: "Or update someone\u2019s existing photo",
+    pickRoster: "Or pick from the student list",
+    pickRosterSearch: "Search the student list…",
+    pickRosterNone: "No match in the student list (people already enrolled are hidden).",
+    openFull: "Open the full photo",
     updateSearch: "Search a name or ID\u2026",
     updateBtn: "Use this photo",
     updatedMsg: "Updated #{id}.",
@@ -1122,6 +1130,10 @@ const he: Dict = {
     needName: "יש להזין שם.",
     orMatchRoster: "או התאמה לרשימה",
     updateExisting: "או עדכון תמונה של אדם קיים",
+    pickRoster: "או בחירה מרשימת התלמידים",
+    pickRosterSearch: "חיפוש ברשימת התלמידים…",
+    pickRosterNone: "לא נמצאה התאמה ברשימה (תלמידים שכבר נרשמו מוסתרים).",
+    openFull: "פתחו את התמונה המלאה",
     updateSearch: "חיפוש שם או מספר\u2026",
     updateBtn: "השתמש בתמונה זו",
     updatedMsg: "עודכן #{id}.",

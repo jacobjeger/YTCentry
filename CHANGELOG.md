@@ -24,6 +24,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   name** columns and joins them.
 - The Roster list shows each person's photo as a thumbnail, click to open it
   full size.
+- The Review Queue lets you search the student list and attach a photo to the
+  right person yourself, for emails the matcher couldn't match (an email with
+  no subject line gives it no name to work with).
 - An email whose attachment can't be read as a photo now appears in the Review
   Queue with the reason and what was attached, instead of being dropped
   silently. Only Reject is offered, since there's no photo to enrol.
@@ -63,5 +66,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   instead of a space ("Avromi+Franklin"). Needs a new app build to take effect.
 
 ### Changed
+
+- Review Queue photos are shown whole instead of cropped to a square, and open
+  full size when clicked.
 
 - Roster import reports how many rows were skipped for a blank name or ID.

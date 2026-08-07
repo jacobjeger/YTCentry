@@ -1,7 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, getPhotoBytes, audit, validateFace, getCachedDirectory } from "@ytc/core";
+import {
+  prisma,
+  getPhotoBytes,
+  audit,
+  validateFace,
+  getCachedDirectory,
+  normalizeName,
+} from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
 import { deviceClientById, describeDeviceError } from "@/lib/device";
@@ -32,6 +39,40 @@ export async function searchExistingPeople(query: string): Promise<PersonHit[]> 
     .filter((r) => r.name.toLowerCase().includes(q) || r.userID.includes(q))
     .slice(0, 8)
     .map((r) => ({ userID: r.userID, name: r.name, hasFace: r.hasFace }));
+}
+
+export interface RosterHit {
+  studentId: string;
+  name: string;
+  shiur: string | null;
+}
+
+/**
+ * Search the roster to attach a photo by hand.
+ *
+ * The card only offers roster buttons for candidates the matcher proposed, and
+ * it proposes none when there's nothing to match on — an email with no subject
+ * line gives no name, so a perfectly good photo had no way to reach the roster
+ * entry it belongs to. This lets staff pick the person themselves.
+ */
+export async function searchRoster(query: string): Promise<RosterHit[]> {
+  await requireUser();
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const rows = await prisma.rosterEntry.findMany({
+    where: {
+      status: { not: "ENROLLED" }, // already has a face on file
+      OR: [
+        { fullName: { contains: q, mode: "insensitive" } },
+        { normalizedName: { contains: normalizeName(q) } },
+        { studentId: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    orderBy: { fullName: "asc" },
+    take: 8,
+    select: { studentId: true, fullName: true, shiur: true },
+  });
+  return rows.map((r) => ({ studentId: r.studentId, name: r.fullName, shiur: r.shiur }));
 }
 
 /** Use a review photo to REPLACE an existing person's face on the door. */

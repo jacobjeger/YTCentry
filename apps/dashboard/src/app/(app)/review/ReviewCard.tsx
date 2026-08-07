@@ -8,6 +8,7 @@ import {
   type ReviewState,
 } from "./actions";
 import UpdateExistingPerson from "./UpdateExistingPerson";
+import PickFromRoster from "./PickFromRoster";
 import { useT } from "@/components/LocaleProvider";
 
 export interface ReviewItem {
@@ -70,12 +71,17 @@ export default function ReviewCard({
         />
       ) : null}
       {item.photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={item.photoUrl}
-          alt={t.review.submissionAlt}
-          className="w-32 h-32 rounded-lg object-cover bg-stone-100 shrink-0"
-        />
+        // object-CONTAIN, not cover: this is the photo being judged, so it must
+        // not be cropped. Click opens it full size.
+        <a href={item.photoUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={item.photoUrl}
+            alt={t.review.submissionAlt}
+            title={t.review.openFull}
+            className="w-32 h-32 rounded-lg object-contain bg-stone-100 hover:ring-2 hover:ring-bronze"
+          />
+        </a>
       ) : (
         <div className="w-32 h-32 rounded-lg bg-amber-50 border border-amber-200 shrink-0 flex flex-col items-center justify-center gap-1 text-center px-2">
           <span className="text-2xl" aria-hidden>
@@ -172,6 +178,12 @@ export default function ReviewCard({
               ))}
             </div>
           </div>
+        ) : null}
+
+        {/* No auto-matched candidates (e.g. an email with no subject) — let
+            staff find the roster entry themselves rather than dead-ending. */}
+        {item.candidates.length === 0 ? (
+          <PickFromRoster submissionId={item.id} />
         ) : null}
 
         {/* Tertiary: replace an existing person's face with this photo. */}
