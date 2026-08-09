@@ -172,6 +172,10 @@ async function retryLoop() {
         // Failures used to be silent, which made a week-long backlog look like
         // a loop that wasn't running at all. Always say what went wrong.
         for (const e of errors) console.warn(`[retry fail] ${e}`);
+      } else if (remaining) {
+        // A backlog that never moves and never errors is the state that hid the
+        // last outage for a week. Say so out loud every cycle.
+        console.log(`[retry] ${remaining} waiting, none retryable this cycle`);
       }
     } catch (e) {
       console.error("[retry loop error]", e);
