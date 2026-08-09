@@ -163,9 +163,15 @@ async function retryLoop() {
   const interval = Number(process.env.RETRY_PUSH_MS ?? 2 * 60 * 1000);
   while (running) {
     try {
-      const { pushed, remaining } = await retryFailedEnrollPushes();
-      if (pushed) {
-        console.log(`[retry] pushed ${pushed} queued enrollment(s); ${remaining} still waiting`);
+      const { pushed, failed, remaining, errors, doorDown } = await retryFailedEnrollPushes();
+      if (pushed || failed) {
+        console.log(
+          `[retry] pushed ${pushed}, failed ${failed}; ${remaining} still waiting` +
+            (doorDown ? " (door looks down — cycle stopped early)" : ""),
+        );
+        // Failures used to be silent, which made a week-long backlog look like
+        // a loop that wasn't running at all. Always say what went wrong.
+        for (const e of errors) console.warn(`[retry fail] ${e}`);
       }
     } catch (e) {
       console.error("[retry loop error]", e);

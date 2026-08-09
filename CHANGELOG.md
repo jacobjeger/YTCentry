@@ -41,6 +41,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **One stuck enrollment no longer holds back everyone waiting for the door.**
+  The store-and-forward retry stopped the entire cycle at the first person whose
+  push failed, and always started from the same one — so a backlog never drained
+  even after the door came back. It now works through the whole backlog
+  oldest-first, and only gives up early when several pushes in a row show the
+  door is genuinely down.
+- **Failed retries are no longer silent.** The push worker logged only its
+  successes, so a backlog that was failing every two minutes looked exactly like
+  a retry loop that wasn't running. Every failure is now logged with the person,
+  the door, and the reason.
 - **Roster import no longer merges people together.** With no unique ID column,
   every row was overwriting a handful of records: an 83-row upload reported
   "2 added, 78 updated" and left 2 rows. Student ID is now optional and a stable

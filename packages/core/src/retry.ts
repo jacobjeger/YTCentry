@@ -9,6 +9,9 @@
  * Only TRANSIENT (door-unreachable) failures are retried. A "couldn't read a
  * face" failure won't fix itself on retry — it needs a new photo — so those are
  * left for manual handling in the Directory.
+ *
+ * A cycle walks the whole backlog oldest-first and reports every failure to the
+ * caller; one person that won't push never blocks the people behind them.
  */
 import { prisma } from "./db";
 import { getPhotoBytes } from "./storage";
@@ -41,11 +44,31 @@ export function isUnreachableError(msg: string | null | undefined): boolean {
   return !!m && isTransientHttpStatus(Number(m[1]));
 }
 
-export async function retryFailedEnrollPushes(
-  limit = 25,
-): Promise<{ pushed: number; remaining: number }> {
+/**
+ * How many rows in a row may fail as "door unreachable" before we call it an
+ * outage and end the cycle. One slow/awkward photo must never block everyone
+ * behind it (that bug left 15 people stuck for a week), but once several in a
+ * row time out the door really is down and there's no point burning a 30s
+ * upload timeout on every remaining row.
+ */
+const UNREACHABLE_STREAK_LIMIT = 3;
+
+export interface RetryResult {
+  pushed: number;
+  failed: number;
+  remaining: number;
+  /** One line per failed row, for the caller to log. Failures are never silent. */
+  errors: string[];
+  /** True when the cycle stopped early because the door looked genuinely down. */
+  doorDown: boolean;
+}
+
+export async function retryFailedEnrollPushes(limit = 25): Promise<RetryResult> {
   const rows = await prisma.enrolleeDevice.findMany({
     where: { status: "PUSH_FAILED" },
+    // Oldest enrollment first, so the queue drains in the order people were
+    // added rather than in whatever order Postgres returns.
+    orderBy: { enrollee: { createdAt: "asc" } },
     include: { enrollee: true, device: true },
     take: limit,
   });
@@ -55,13 +78,24 @@ export async function retryFailedEnrollPushes(
   );
 
   let pushed = 0;
+  let failed = 0;
+  let streak = 0;
+  let doorDown = false;
+  const errors: string[] = [];
+
   for (const r of retryable) {
     const e = r.enrollee;
     let image: Uint8Array;
     try {
       image = await getPhotoBytes(e.photoPath!);
-    } catch {
-      continue; // photo missing — can't retry
+    } catch (err) {
+      // Photo missing from storage — can't retry, but say so rather than
+      // skipping in silence.
+      failed++;
+      errors.push(
+        `${e.displayName}: photo ${e.photoPath} unreadable — ${err instanceof Error ? err.message : String(err)}`,
+      );
+      continue;
     }
     try {
       await clientForDevice(r.device).pushUserWeb({
@@ -98,23 +132,35 @@ export async function retryFailedEnrollPushes(
         },
       });
       pushed++;
+      streak = 0;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await prisma.enrolleeDevice.update({
         where: { id: r.id },
         data: { lastError: msg },
       });
-      // Door still unreachable — stop this cycle instead of hanging on every row.
-      if (isUnreachableError(msg)) break;
+      failed++;
+      errors.push(`${e.displayName} → ${r.device.name}: ${msg}`);
+      // One failure means this person didn't land — move on to the next. Only
+      // a run of unreachable failures means the door itself is down.
+      if (isUnreachableError(msg)) {
+        streak++;
+        if (streak >= UNREACHABLE_STREAK_LIMIT) {
+          doorDown = true;
+          break;
+        }
+      } else {
+        streak = 0;
+      }
     }
   }
 
-  pushed += await adoptOrphanEnrollees();
+  if (!doorDown) pushed += await adoptOrphanEnrollees();
 
   const remaining = await prisma.enrolleeDevice.count({
     where: { status: "PUSH_FAILED" },
   });
-  return { pushed, remaining };
+  return { pushed, failed, remaining, errors, doorDown };
 }
 
 /**
