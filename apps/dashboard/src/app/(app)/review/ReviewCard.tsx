@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   approveSubmission,
+  chooseSubmissionPhoto,
   enrollByName,
   rejectSubmission,
   type ReviewState,
@@ -20,6 +22,9 @@ export interface ReviewItem {
   faceNote: string | null;
   /** null when the email had no usable image — nothing was stored. */
   photoUrl: string | null;
+  /** Every image from the email, the one in use first. More than one means the
+   *  sender's signature logo came along for the ride, so staff pick. */
+  photos: { path: string; url: string }[];
   candidates: { studentId: string; name: string; score: number }[];
 }
 
@@ -35,6 +40,13 @@ export default function ReviewCard({
   onToggle?: () => void;
 }) {
   const t = useT();
+  const router = useRouter();
+  const [choosing, startChoose] = useTransition();
+  const choose = (path: string) =>
+    startChoose(async () => {
+      await chooseSubmissionPhoto(item.id, path);
+      router.refresh();
+    });
   const [aState, approveAction, aPending] = useActionState<ReviewState, FormData>(
     approveSubmission,
     {},
@@ -71,17 +83,54 @@ export default function ReviewCard({
         />
       ) : null}
       {item.photoUrl ? (
-        // object-CONTAIN, not cover: this is the photo being judged, so it must
-        // not be cropped. Click opens it full size.
-        <a href={item.photoUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.photoUrl}
-            alt={t.review.submissionAlt}
-            title={t.review.openFull}
-            className="w-32 h-32 rounded-lg object-contain bg-stone-100 hover:ring-2 hover:ring-bronze"
-          />
-        </a>
+        <div className="shrink-0 flex flex-col gap-2">
+          {/* object-CONTAIN, not cover: this is the photo being judged, so it
+              must not be cropped. Click opens it full size. */}
+          <a href={item.photoUrl} target="_blank" rel="noopener noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.photoUrl}
+              alt={t.review.submissionAlt}
+              title={t.review.openFull}
+              className="w-32 h-32 rounded-lg object-contain bg-stone-100 hover:ring-2 hover:ring-bronze"
+            />
+          </a>
+          {/* The email carried more than one image — almost always a signature
+              logo riding along with the real photo. Show them all and let staff
+              say which one is the person. */}
+          {item.photos.length > 1 ? (
+            <div className={choosing ? "opacity-50 pointer-events-none" : ""}>
+              <p className="text-[11px] text-stone-500 mb-1">{t.review.choosePhoto}</p>
+              <div className="flex flex-wrap gap-1.5 w-32">
+                {item.photos.map((p, i) => {
+                  const inUse = i === 0;
+                  return (
+                    <button
+                      key={p.path}
+                      type="button"
+                      onClick={() => choose(p.path)}
+                      disabled={inUse || choosing}
+                      title={inUse ? t.review.photoInUse : t.review.usePhoto}
+                      aria-pressed={inUse}
+                      className={`rounded-md overflow-hidden border-2 ${
+                        inUse
+                          ? "border-bronze cursor-default"
+                          : "border-transparent hover:border-stone-400 cursor-pointer"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={p.url}
+                        alt={inUse ? t.review.photoInUse : t.review.usePhoto}
+                        className="w-10 h-10 object-contain bg-stone-100"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <div className="w-32 h-32 rounded-lg bg-amber-50 border border-amber-200 shrink-0 flex flex-col items-center justify-center gap-1 text-center px-2">
           <span className="text-2xl" aria-hidden>

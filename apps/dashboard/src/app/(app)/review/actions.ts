@@ -291,6 +291,54 @@ export async function enrollByName(
   }
 }
 
+/**
+ * Choose which of the email's images is this person's photo.
+ *
+ * Emails carry more than one image — a signature logo alongside the real
+ * picture — and picking the wrong one used to enroll a company wordmark. The
+ * chosen key is swapped into `imagePath` and the previous one moves into the
+ * alternates, so approving, enrolling by name, and updating an existing
+ * person's photo all keep reading a single field and need no special case.
+ */
+export async function chooseSubmissionPhoto(
+  submissionId: string,
+  path: string,
+): Promise<ReviewState> {
+  const user = await requireUser();
+  const t = getDictionary(await getLocale());
+
+  const submission = await prisma.photoSubmission.findUnique({
+    where: { id: submissionId },
+    select: { imagePath: true, altImagePaths: true },
+  });
+  if (!submission) return { error: t.common.error };
+  if (path === submission.imagePath) return { ok: path }; // already the one in use
+
+  // Only ever select an image that arrived with THIS submission — the key comes
+  // from the browser, so it must never be trusted as a free-form storage path.
+  if (!submission.altImagePaths.includes(path)) return { error: t.common.error };
+
+  await prisma.photoSubmission.update({
+    where: { id: submissionId },
+    data: {
+      imagePath: path,
+      altImagePaths: [
+        submission.imagePath,
+        ...submission.altImagePaths.filter((p) => p !== path),
+      ].filter(Boolean),
+    },
+  });
+  await audit({
+    actorId: user.id,
+    action: "submission.choosePhoto",
+    targetType: "PhotoSubmission",
+    targetId: submissionId,
+    meta: { chose: path, was: submission.imagePath },
+  });
+  revalidatePath("/review");
+  return { ok: path };
+}
+
 export async function rejectSubmission(formData: FormData) {
   const user = await requireUser();
   const submissionId = String(formData.get("submissionId") ?? "");

@@ -205,7 +205,11 @@ model PhotoSubmission {
   fromAddress    String
   subjectRaw     String?
   parsedName     String?
-  imagePath      String                    // object storage key
+  imagePath      String                    // object storage key — the photo in use
+  /// Every OTHER image that arrived in the same email, in the order they were
+  /// ranked. Signature logos travel in `attachments` exactly like a real photo,
+  /// so we keep them all and let staff click the right one rather than guess.
+  altImagePaths  String[]         @default([])
   faceValid      Boolean?
   faceNote       String?
   matchCandidates Json            @default("[]") // [{studentId,name,score}]

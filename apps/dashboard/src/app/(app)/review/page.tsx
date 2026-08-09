@@ -72,6 +72,12 @@ export default async function ReviewPage({
       // An unusable submission (unreadable attachment) has no stored image —
       // signing an empty key would render a broken thumbnail.
       photoUrl: s.imagePath ? await signedPhotoUrl(s.imagePath, 600) : null,
+      // The in-use image first, then the others that arrived in the same email.
+      photos: await Promise.all(
+        [s.imagePath, ...s.altImagePaths]
+          .filter(Boolean)
+          .map(async (path) => ({ path, url: await signedPhotoUrl(path, 600) })),
+      ),
       candidates: Array.isArray(s.matchCandidates)
         ? (s.matchCandidates as { studentId: string; name: string; score: number }[])
         : [],

@@ -41,6 +41,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Emails no longer enroll the sender's company logo.** An image in a signature
+  arrives looking exactly like an attached photo, so the queue was showing a
+  "VISTA PACIFIC" wordmark and a court seal while the real picture — sitting in
+  the very same email — was thrown away. Every image from the email is now kept,
+  the one most likely to be the person is used by default, and the Review Queue
+  shows the rest as thumbnails so you can click the right one.
 - **One stuck enrollment no longer holds back everyone waiting for the door.**
   The store-and-forward retry stopped the entire cycle at the first person whose
   push failed, and always started from the same one — so a backlog never drained

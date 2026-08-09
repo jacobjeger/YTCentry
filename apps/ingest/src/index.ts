@@ -9,6 +9,7 @@
  */
 import { ImapFlow } from "imapflow";
 import { simpleParser, type ParsedMail } from "mailparser";
+import sharp from "sharp";
 import { prisma } from "@ytc/core";
 import { loadConfig, type IngestConfig } from "./config";
 import { processMessage, type IncomingMessage } from "./processMessage";
@@ -115,28 +116,104 @@ function describePdf(buf: Buffer): string {
   return `${(buf.length / 1024).toFixed(0)}kB filters=[${filters || "none-visible"}] soi=${buf.indexOf(SOI) >= 0} enc=${buf.indexOf("/Encrypt", 0, "latin1") >= 0}`;
 }
 
-/** Find a face image in a message: a file/inline attachment, a JPEG embedded in
- *  a PDF attachment, else a base64 data: URI in the HTML body (pasted photos). */
-function extractImage(parsed: ParsedMail): { bytes: Uint8Array; mime: string } | null {
+/**
+ * Smallest short edge that can plausibly hold a face.
+ *
+ * This is what tells a person apart from a company logo: the signature images
+ * we've received are 169x62 and 98x97, while every genuine photo is at least
+ * 576px on its short edge. Undersized images are still KEPT and shown — they
+ * just never become the default pick.
+ */
+const MIN_FACE_EDGE = 200;
+
+/** How many images from one email we're willing to store. */
+const MAX_IMAGES = 6;
+
+export interface ImageCandidate {
+  bytes: Uint8Array;
+  mime: string;
+  /** Higher sorts first; the top one becomes the photo in use. */
+  rank: number;
+  label: string;
+}
+
+/**
+ * Rank an image by how it arrived. A real attachment beats anything inline —
+ * that alone picks the photo over the signature in the usual Outlook layout.
+ * A cid-referenced part is signature-shaped so it sorts last, but it is NOT
+ * disqualified: phones that paste a photo into the body produce exactly that,
+ * and those are real submissions.
+ */
+function arrivalRank(a: { contentDisposition?: string; cid?: string; related?: boolean }): number {
+  if (a.contentDisposition === "attachment") return 2;
+  if (a.cid || a.related) return 0;
+  return 1;
+}
+
+/**
+ * Collect EVERY image in a message, best-guess first: file/inline attachments,
+ * a JPEG embedded in a PDF, and a base64 data: URI in the HTML body.
+ *
+ * Nothing is thrown away. Taking the first image used to enroll a "VISTA
+ * PACIFIC" wordmark and a court seal while the real photo sat unused in the
+ * same email — so now the whole set is stored and staff pick the right one.
+ */
+async function extractImages(parsed: ParsedMail): Promise<ImageCandidate[]> {
+  const candidates: ImageCandidate[] = [];
+
   for (const a of parsed.attachments ?? []) {
     if (a.contentType?.startsWith("image/") && a.content) {
-      return { bytes: new Uint8Array(a.content), mime: a.contentType };
+      candidates.push({
+        bytes: new Uint8Array(a.content),
+        mime: a.contentType,
+        rank: arrivalRank(a as Parameters<typeof arrivalRank>[0]),
+        label: a.filename ?? a.contentType,
+      });
     }
   }
   for (const a of parsed.attachments ?? []) {
     if (a.contentType === "application/pdf" && a.content) {
       const pdf = a.content as Buffer;
       const jpeg = jpegFromPdf(pdf);
-      if (jpeg) return { bytes: jpeg, mime: "image/jpeg" };
-      console.log(`[ingest] pdf "${a.filename ?? "?"}" no JPEG inside — ${describePdf(pdf)}`);
+      if (jpeg) {
+        candidates.push({ bytes: jpeg, mime: "image/jpeg", rank: 2, label: a.filename ?? "pdf" });
+      } else {
+        console.log(`[ingest] pdf "${a.filename ?? "?"}" no JPEG inside — ${describePdf(pdf)}`);
+      }
     }
   }
-  const html = parsed.html || "";
-  const m = html.match(/data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)/i);
+  const m = (parsed.html || "").match(/data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)/i);
   if (m) {
-    return { bytes: new Uint8Array(Buffer.from(m[2]!, "base64")), mime: m[1]! };
+    candidates.push({
+      bytes: new Uint8Array(Buffer.from(m[2]!, "base64")),
+      mime: m[1]!,
+      rank: 1,
+      label: "pasted into the body",
+    });
   }
-  return null;
+
+  // Demote anything too small to be a face so a signature icon is never the
+  // default — it stays in the list, just at the bottom.
+  for (const c of candidates) {
+    try {
+      const md = await sharp(Buffer.from(c.bytes)).metadata();
+      if (Math.min(md.width ?? 0, md.height ?? 0) < MIN_FACE_EDGE) {
+        c.rank = -1;
+        c.label += ` (${md.width}x${md.height} — looks like a logo)`;
+      }
+    } catch {
+      // Undecodable by sharp doesn't mean unusable — validateFace still handles
+      // HEIC and friends downstream. Leave the rank alone.
+    }
+  }
+
+  // Stable sort: equal ranks keep the order they appeared in the message, so a
+  // message with two comparable images behaves exactly as it always did.
+  return candidates
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => b.c.rank - a.c.rank || a.i - b.i)
+    .map(({ c }) => c)
+    .slice(0, MAX_IMAGES);
 }
 
 /**
@@ -193,18 +270,22 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
         const msg = await client.fetchOne(c.uid, { source: true }, { uid: true });
         if (!msg || !msg.source) continue;
         const parsed = (await simpleParser(msg.source)) as ParsedMail;
-        const img = extractImage(parsed);
-        // Diagnostic: what does this message actually contain?
+        const images = await extractImages(parsed);
+        // Diagnostic: what does this message actually contain, and which image
+        // did we put first?
         const attTypes = (parsed.attachments ?? []).map((a) => a.contentType).join(",");
         console.log(
-          `[ingest] candidate "${parsed.subject}" atts=[${attTypes}] htmlDataUri=${/data:image\//i.test(parsed.html || "")} image=${img ? img.mime : "NONE"}`,
+          `[ingest] candidate "${parsed.subject}" atts=[${attTypes}] htmlDataUri=${/data:image\//i.test(parsed.html || "")} images=${
+            images.length ? images.map((i) => `${i.label}#${i.rank}`).join(" | ") : "NONE"
+          }`,
         );
         const incoming: IncomingMessage = {
           messageId: c.messageId,
           from: parsed.from?.value?.[0]?.address ?? "unknown",
           subject: parsed.subject ?? "",
-          image: img?.bytes ?? null,
-          imageMime: img?.mime,
+          image: images[0]?.bytes ?? null,
+          imageMime: images[0]?.mime,
+          extraImages: images.slice(1).map((i) => ({ bytes: i.bytes, mime: i.mime })),
           attachments: (parsed.attachments ?? []).map((a) => ({
             type: a.contentType ?? "unknown",
             name: a.filename,

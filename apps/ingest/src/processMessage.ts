@@ -21,6 +21,8 @@ export interface IncomingMessage {
   subject: string;
   image: Uint8Array | null;
   imageMime?: string;
+  /** The other images from the same email, kept so staff can switch to one. */
+  extraImages?: { bytes: Uint8Array; mime: string }[];
   /** What was attached, so an unusable file can be described to staff. */
   attachments?: { type: string; name?: string }[];
 }
@@ -103,8 +105,25 @@ export async function processMessage(
   // human can see why (faceValid=false, faceNote).
   const face = await validateFace(msg.image);
   const imageBytes = face.ok && face.image ? face.image : msg.image;
-  const imagePath = `submissions/${sanitize(msg.messageId)}.jpg`;
+  const base = sanitize(msg.messageId);
+  const imagePath = `submissions/${base}.jpg`;
   await putPhoto(imagePath, imageBytes, "image/jpeg");
+
+  // Store the rest as-is. They're only shown for picking; whichever one staff
+  // choose gets validated and normalized when it's actually enrolled.
+  const altImagePaths: string[] = [];
+  for (const [i, extra] of (msg.extraImages ?? []).entries()) {
+    const ext = extra.mime === "image/png" ? "png" : extra.mime === "image/gif" ? "gif" : "jpg";
+    const key = `submissions/${base}-alt${i + 1}.${ext}`;
+    try {
+      await putPhoto(key, extra.bytes, extra.mime);
+      altImagePaths.push(key);
+    } catch (e) {
+      // One unstorable extra must not sink the submission — the main photo and
+      // the queue entry still matter.
+      console.warn(`[ingest] could not store extra image ${key}:`, e instanceof Error ? e.message : e);
+    }
+  }
 
   const match = await matchRoster({ parsedName: name, studentId });
   const status: SubmissionStatus =
@@ -120,6 +139,7 @@ export async function processMessage(
         subjectRaw: msg.subject,
         parsedName: name ?? null,
         imagePath,
+        altImagePaths,
         faceValid: face.ok,
         faceNote: face.ok ? null : (face.reason ?? null),
         matchCandidates: match.candidates as object,

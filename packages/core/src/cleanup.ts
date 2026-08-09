@@ -16,11 +16,15 @@ export async function cleanupExpiredDoorSubmissions(days = 7): Promise<number> {
       status: { in: ["RECEIVED", "NEEDS_MATCH", "MATCHED"] },
       createdAt: { lt: cutoff },
     },
-    select: { id: true, imagePath: true },
+    select: { id: true, imagePath: true, altImagePaths: true },
   });
   if (old.length === 0) return 0;
   for (const s of old) {
-    if (s.imagePath) await deletePhoto(s.imagePath).catch(() => {});
+    // Every image the email carried, not just the one in use — otherwise the
+    // unpicked ones linger in storage forever.
+    for (const key of [s.imagePath, ...s.altImagePaths]) {
+      if (key) await deletePhoto(key).catch(() => {});
+    }
   }
   await prisma.photoSubmission.deleteMany({ where: { id: { in: old.map((s) => s.id) } } });
   return old.length;

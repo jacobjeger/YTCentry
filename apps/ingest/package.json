@@ -12,7 +12,8 @@
     "@ytc/core": "*",
     "imapflow": "^1.0.171",
     "mailparser": "^3.7.2",
-    "nodemailer": "^9.0.1"
+    "nodemailer": "^9.0.1",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/mailparser": "^3.4.5",

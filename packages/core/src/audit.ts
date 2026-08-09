@@ -14,6 +14,7 @@ export type AuditAction =
   | "submission.approve"
   | "submission.reject"
   | "submission.reassign"
+  | "submission.choosePhoto"
   | "roster.upload"
   | "roster.add"
   | "roster.remove"
