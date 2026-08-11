@@ -219,6 +219,10 @@ export interface Dict {
   roster: {
     title: string;
     subtitle: string;
+    /** headline stats above the roster */
+    statsHave: string;
+    statsRemaining: string; // "{count}"
+    statsComplete: string;
     chooseFile: string;
     parsing: string;
     rowsFound: string; // "{count}"
@@ -636,6 +640,9 @@ const en: Dict = {
     title: "Roster",
     subtitle:
       "Upload the incoming-talmid list (CSV or Excel). We match emailed photos against it.",
+    statsHave: "have a photo on file",
+    statsRemaining: "{count} still to come in",
+    statsComplete: "Everyone on the roster has a photo.",
     chooseFile: "Choose a CSV or Excel file",
     parsing: "Reading file…",
     rowsFound: "{count} rows found. Map the columns, then import.",
@@ -1054,6 +1061,9 @@ const he: Dict = {
   roster: {
     title: "רשימת תלמידים",
     subtitle: "העלו את רשימת התלמידים הנכנסים (CSV או Excel). נשתמש בה להתאמת תמונות מהמייל.",
+    statsHave: "עם תמונה במערכת",
+    statsRemaining: "עוד {count} ממתינים לתמונה",
+    statsComplete: "לכל התלמידים ברשימה יש תמונה.",
     chooseFile: "בחרו קובץ CSV או Excel",
     parsing: "קורא קובץ…",
     rowsFound: "נמצאו {count} שורות. מפו את העמודות וייבאו.",

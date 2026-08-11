@@ -2,6 +2,7 @@
 
 import * as XLSX from "xlsx";
 import { prisma, normalizeName, audit } from "@ytc/core";
+import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
@@ -122,6 +123,9 @@ export async function importRoster(
     .replace("{created}", String(created))
     .replace("{updated}", String(updated));
   if (skipped > 0) ok += " " + t.roster.skippedNote.replace("{n}", String(skipped));
+  // The headline stats are server-rendered at the top of the page, so they only
+  // move if the route is revalidated after a change.
+  revalidatePath("/roster");
   return { ok };
 }
 
@@ -192,6 +196,7 @@ export async function addRosterEntry(
     targetId: studentId,
     meta: { fullName },
   });
+  revalidatePath("/roster");
   return { ok: fullName };
 }
 
@@ -201,4 +206,5 @@ export async function deleteRosterEntry(formData: FormData): Promise<void> {
   if (!id) return;
   await prisma.rosterEntry.deleteMany({ where: { id } });
   await audit({ actorId: user.id, action: "roster.remove", targetType: "RosterEntry", targetId: id });
+  revalidatePath("/roster");
 }

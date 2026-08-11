@@ -3,6 +3,7 @@ import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 import RosterUpload from "./RosterUpload";
 import RosterManager from "./RosterManager";
+import RosterStats from "./RosterStats";
 
 export default async function RosterPage() {
   await requireUser();
@@ -12,6 +13,7 @@ export default async function RosterPage() {
       <div>
         <h1 className="text-2xl font-semibold">{t.roster.title}</h1>
         <p className="text-stone-500 mt-1 mb-6">{t.roster.subtitle}</p>
+        <RosterStats />
         <RosterUpload />
       </div>
       <RosterManager />

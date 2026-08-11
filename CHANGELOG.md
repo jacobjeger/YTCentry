@@ -13,6 +13,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **The Roster page opens with how far along you are** — "29 / 82 have a photo
+  on file", the percentage, a progress bar, and how many are still to come in.
+  Updates as soon as you import, add, or remove someone.
 - **Whoever emails a photo in now gets told when the person is live on the
   door** — a short reply, threaded under their original email, sent once the
   door actually has them. It fires however they got there, including hours later
