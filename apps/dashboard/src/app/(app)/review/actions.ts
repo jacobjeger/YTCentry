@@ -159,6 +159,9 @@ export async function approveSubmission(
       image: bytes,
       actorId: user.id,
       rosterEntryId: roster.id,
+      // Confirm back to whoever emailed the photo once the door has them.
+      notifyEmail: submission.fromAddress,
+      notifyMessageId: submission.gmailMessageId,
     });
 
     await prisma.photoSubmission.update({
@@ -259,6 +262,8 @@ export async function enrollByName(
       rosterEntryId: roster?.id,
       image: bytes,
       actorId: user.id,
+      notifyEmail: submission.fromAddress,
+      notifyMessageId: submission.gmailMessageId,
     });
     await prisma.photoSubmission.update({
       where: { id: submissionId },

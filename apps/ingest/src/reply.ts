@@ -9,27 +9,8 @@
  * PhotoSubmission row was newly created, and that row's unique gmailMessageId
  * stops the message being handled twice.
  */
-import nodemailer from "nodemailer";
 import type { IngestConfig } from "./config";
-
-/**
- * Addresses we must never reply to. Auto-replying to an automated sender is
- * how mail loops start, and replying to our own mailbox would have us ingest
- * our own message.
- */
-const NEVER_REPLY = /(^|[.<@])(no-?reply|do-?not-?reply|mailer-daemon|postmaster|bounce)/i;
-
-let transport: nodemailer.Transporter | null = null;
-
-function mailer(cfg: IngestConfig): nodemailer.Transporter {
-  transport ??= nodemailer.createTransport({
-    host: process.env.SMTP_HOST ?? "smtp.gmail.com",
-    port: Number(process.env.SMTP_PORT ?? 465),
-    secure: true,
-    auth: { user: cfg.user, pass: cfg.pass },
-  });
-  return transport;
-}
+import { mailer, refuseToMail } from "./mailer";
 
 export interface UnusableReply {
   to: string;
@@ -47,10 +28,8 @@ export async function replyUnusable(
 ): Promise<string | null> {
   if (process.env.REPLY_TO_UNUSABLE === "false") return "disabled";
 
-  const to = msg.to.trim().toLowerCase();
-  if (!to || !to.includes("@")) return "no address";
-  if (to === cfg.user.toLowerCase()) return "own mailbox";
-  if (NEVER_REPLY.test(to)) return "automated sender";
+  const refusal = refuseToMail(cfg, msg.to);
+  if (refusal) return refusal;
 
   const subject = /^re:/i.test(msg.subject) ? msg.subject : `Re: ${msg.subject || "Photo"}`;
   const text = [

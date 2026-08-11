@@ -89,6 +89,18 @@ model Enrollee {
   status       EnrolleeStatus @default(DRAFT)
   lastError    String?
   pushedAt     DateTime?
+
+  /// Who to tell once this person is actually live on the door — the address
+  /// that emailed the photo in. Null for door scans and manual adds, which is
+  /// simply "nobody asked to be told". Six different code paths set status to
+  /// PUSHED (including the retry loop, hours after an outage), so the send is
+  /// driven off this state rather than hooked onto any one of them.
+  notifyEmail    String?
+  /// Original Message-ID, so the confirmation threads under their own email.
+  notifyMessageId String?
+  notifiedAt     DateTime?
+  /// Give up after a few tries rather than mailing a dead address forever.
+  notifyAttempts Int      @default(0)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 

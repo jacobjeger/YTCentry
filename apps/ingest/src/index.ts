@@ -14,6 +14,7 @@ import { prisma } from "@ytc/core";
 import { loadConfig, type IngestConfig } from "./config";
 import { processMessage, type IncomingMessage } from "./processMessage";
 import { replyUnusable } from "./reply";
+import { notifyEnrolled } from "./notify";
 
 let running = true;
 process.on("SIGINT", () => (running = false));
@@ -394,11 +395,31 @@ async function watch(cfg: IngestConfig): Promise<void> {
   }
 }
 
+/**
+ * Outbound: confirm to whoever emailed a photo that the person is live on the
+ * door. Runs on its own clock rather than off the IMAP loop — the push that
+ * makes someone live happens in another service entirely, often long after the
+ * mail that started it.
+ */
+async function notifyLoop(cfg: IngestConfig): Promise<void> {
+  const interval = Number(process.env.NOTIFY_POLL_MS ?? 2 * 60 * 1000);
+  while (running) {
+    try {
+      const n = await notifyEnrolled(cfg);
+      if (n) console.log(`[notify] sent ${n} confirmation(s)`);
+    } catch (e) {
+      console.error("[notify loop error]", e);
+    }
+    await sleep(interval);
+  }
+}
+
 const cfg = loadConfig();
 if (!cfg) {
   console.log("ytc ingest: GMAIL_USER/GMAIL_APP_PASSWORD not set — idling.");
   setInterval(() => {}, 1 << 30);
 } else {
   console.log(`ytc ingest up — mailbox ${cfg.user}`);
+  notifyLoop(cfg);
   watch(cfg);
 }

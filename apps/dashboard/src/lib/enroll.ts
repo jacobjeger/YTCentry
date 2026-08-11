@@ -57,6 +57,10 @@ export interface EnrollInput {
   actorId?: string | null;
   /** link back to the roster/submission rows when promoting from email */
   rosterEntryId?: string | null;
+  /** who to confirm to once this person is actually live on the door — the
+   *  address that emailed the photo in, with its Message-ID for threading */
+  notifyEmail?: string | null;
+  notifyMessageId?: string | null;
   /** which doors to enroll on; defaults to all active doors */
   deviceIds?: string[];
 }
@@ -129,6 +133,8 @@ async function createEnrollee(
         photoPath,
         status: "PENDING_PUSH",
         createdById: input.actorId ?? null,
+        notifyEmail: input.notifyEmail?.trim() || null,
+        notifyMessageId: input.notifyMessageId || null,
       },
     });
     if (input.rosterEntryId) {

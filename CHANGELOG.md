@@ -13,6 +13,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Whoever emails a photo in now gets told when the person is live on the
+  door** — a short reply, threaded under their original email, sent once the
+  door actually has them. It fires however they got there, including hours later
+  when a door outage clears and the queued enrollment finally lands. Door scans
+  and people added by hand send nothing, since no address was ever given.
+  Set `NOTIFY_ON_ENROLL=false` to turn it off.
 - Dashboard home shows live **door status**: connected / not connected / needs
   attention per door, with response time and how many enrollments are waiting
   on each. Probed on load, so it reflects the door right now.
