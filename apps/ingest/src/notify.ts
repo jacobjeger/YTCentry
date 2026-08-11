@@ -40,8 +40,7 @@ function body(name: string): string {
     "entrance system. The photo you submitted is now on file and access is",
     "active.",
     "",
-    "Should any issue arise, or should the photo need to be replaced, please",
-    "reply to this message.",
+    "If you have an issue getting in, please reply to this email.",
     "",
     "Thank you.",
   ].join("\n");
