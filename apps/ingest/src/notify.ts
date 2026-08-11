@@ -18,18 +18,47 @@ import { mailer, refuseToMail } from "./mailer";
 /** After this many failed sends, stop trying and leave it for a human. */
 const MAX_ATTEMPTS = 3;
 
+/**
+ * "Greenberg, Shua" → "Shua Greenberg".
+ *
+ * Names are stored as staff typed them, and surname-first is common — which
+ * reads badly mid-sentence ("Greenberg, Shua has successfully been added").
+ * Only a single comma is rearranged; anything else is left exactly as stored.
+ */
+function readableName(name: string): string {
+  const parts = name.split(",");
+  if (parts.length !== 2) return name.trim();
+  const [last, first] = parts.map((p) => p.trim());
+  return last && first ? `${first} ${last}` : name.trim();
+}
+
 function body(name: string): string {
   return [
     "Hello,",
     "",
-    `${name} is now set up at the door. The photo you sent has been added, and`,
-    "the door will recognize them from now on.",
+    `${name} has successfully been added to the Toras Chaim front door`,
+    "entrance system. The photo you submitted is now on file and access is",
+    "active.",
     "",
-    "If it doesn't work, or the picture needs changing, reply to this email and",
-    "we'll take another look.",
+    "Should any issue arise, or should the photo need to be replaced, please",
+    "reply to this message.",
     "",
     "Thank you.",
   ].join("\n");
+}
+
+/**
+ * Subject for a reply that actually lands in their existing thread.
+ *
+ * The In-Reply-To/References headers alone are not enough: Gmail also keys on
+ * the subject, so a new one starts a fresh conversation no matter what the
+ * headers say. Reusing their subject with "Re:" is what keeps the confirmation
+ * attached to the email they sent.
+ */
+function replySubject(original: string | null | undefined, name: string): string {
+  const subj = (original ?? "").trim();
+  if (!subj) return `Door access active — ${name}`;
+  return /^re:/i.test(subj) ? subj : `Re: ${subj}`;
 }
 
 /** Returns how many confirmations were sent. */
@@ -62,14 +91,21 @@ export async function notifyEnrolled(cfg: IngestConfig, limit = 25): Promise<num
       continue;
     }
 
+    // Their original subject, so the confirmation lands in the thread they
+    // started rather than as a separate conversation.
+    const original = e.notifyMessageId
+      ? await prisma.photoSubmission.findUnique({
+          where: { gmailMessageId: e.notifyMessageId },
+          select: { subjectRaw: true },
+        })
+      : null;
+
     try {
       await mailer(cfg).sendMail({
         from: cfg.user,
         to: e.notifyEmail!,
-        subject: `${e.displayName} is set up at the door`,
-        text: body(e.displayName),
-        // Thread under their original email so it reads as a reply to the
-        // photo they sent, not as mail out of nowhere.
+        subject: replySubject(original?.subjectRaw, readableName(e.displayName)),
+        text: body(readableName(e.displayName)),
         ...(e.notifyMessageId
           ? { inReplyTo: e.notifyMessageId, references: e.notifyMessageId }
           : {}),
