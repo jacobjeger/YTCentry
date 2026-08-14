@@ -23,6 +23,23 @@ data class TempCreateRequest(
 @Serializable
 data class RevokeRequest(val id: String)
 
+/** Approve a queued photo: by roster [studentId], or under a typed [displayName]. */
+@Serializable
+data class ApproveRequest(
+    val submissionId: String,
+    val studentId: String? = null,
+    val displayName: String? = null,
+    val groupName: String? = null,
+    val pin: String? = null,
+)
+
+@Serializable
+data class SubmissionIdRequest(val submissionId: String)
+
+/** Pick which image from the email is the person's photo. */
+@Serializable
+data class ChoosePhotoRequest(val submissionId: String, val path: String)
+
 // ---- Responses ----
 @Serializable
 data class LoginResponse(val token: String, val name: String = "", val role: String = "")
@@ -86,6 +103,46 @@ data class TempCreateResponse(
     val pin: String? = null,
     val label: String? = null,
     val expiresAt: String? = null,
+    val error: String? = null,
+)
+
+/** One image that arrived with a submission. [path] identifies it server-side. */
+@Serializable
+data class SubmissionPhotoDto(val path: String, val url: String)
+
+/** A roster person the matcher thinks this photo might be. */
+@Serializable
+data class MatchCandidateDto(
+    val studentId: String,
+    val name: String,
+    val score: Double = 0.0,
+)
+
+@Serializable
+data class SubmissionDto(
+    val id: String,
+    val source: String = "email", // "email" | "door"
+    val from: String = "",
+    val subject: String = "",
+    val parsedName: String? = null,
+    val faceValid: Boolean? = null,
+    val faceNote: String? = null,
+    val createdAt: String = "",
+    /** Every image from the email, the one in use first. */
+    val photos: List<SubmissionPhotoDto> = emptyList(),
+    val candidates: List<MatchCandidateDto> = emptyList(),
+)
+
+@Serializable
+data class ReviewResponse(val submissions: List<SubmissionDto> = emptyList())
+
+@Serializable
+data class ApproveResponse(
+    val ok: Boolean = false,
+    /** True when the door was unreachable: saved and queued, not a failure. */
+    val queued: Boolean = false,
+    val userId: Int? = null,
+    val name: String? = null,
     val error: String? = null,
 )
 

@@ -38,6 +38,7 @@ private data class Tab(val route: String, val emoji: String, val labelRes: Int)
 
 private val TABS = listOf(
     Tab("add", "➕", R.string.tab_add),
+    Tab("review", "📥", R.string.tab_review),
     Tab("roster", "📋", R.string.tab_roster),
     Tab("temp", "🔑", R.string.tab_temp),
 )
@@ -124,6 +125,9 @@ private fun MainScaffold(
                     prefillRosterId = entry.arguments?.getString("rosterId"),
                     onUnauthorized = onLogout,
                 )
+            }
+            composable("review") {
+                ReviewScreen(api = api, onUnauthorized = onLogout)
             }
             composable("roster") {
                 RosterScreen(

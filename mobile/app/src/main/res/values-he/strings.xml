@@ -95,4 +95,16 @@
         <item>ו</item>
         <item>ש</item>
     </string-array>
+    <!-- Review Queue -->
+    <string name="tab_review">בדיקה</string>
+    <string name="review_title">תמונות לבדיקה</string>
+    <string name="review_empty">אין תמונות ממתינות — הכול טופל.</string>
+    <string name="review_source_door">סריקה שנדחתה בדלת</string>
+    <string name="review_no_image">אין תמונה שמישה במייל הזה.</string>
+    <string name="review_choose_photo">איזו תמונה היא של האדם?</string>
+    <string name="review_photo_alt">תמונה שהוגשה</string>
+    <string name="review_name">שם</string>
+    <string name="review_add">הוספה לדלת</string>
+    <string name="review_reject">דחייה</string>
+    <string name="review_approve_as">אישור בתור %1$s</string>
 </resources>

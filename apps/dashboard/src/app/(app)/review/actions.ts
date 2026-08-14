@@ -10,12 +10,37 @@ import {
   normalizeName,
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
-import { enrollPerson, EnrollError } from "@/lib/enroll";
+import {
+  approveAsRoster,
+  approveByName,
+  choosePhoto,
+  rejectOne,
+  type ReviewResult,
+} from "@/lib/review";
 import { deviceClientById, describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary, fmt } from "@/lib/i18n";
 
 export type ReviewState = { error?: string; ok?: string };
+
+/** Render a shared review failure in the staff member's language. */
+function reviewErrorText(
+  res: Extract<ReviewResult, { ok: false }>,
+  t: ReturnType<typeof getDictionary>,
+): string {
+  switch (res.code) {
+    case "roster_missing":
+      return t.review.rosterMissing;
+    case "name_required":
+      return t.review.needName;
+    // The device's own words ("no face found", "too dark") are more use than a
+    // generic failure, so they pass straight through.
+    case "rejected_by_device":
+      return res.message ?? t.common.error;
+    default:
+      return t.common.error;
+  }
+}
 
 export interface PersonHit {
   userID: string;
@@ -119,8 +144,6 @@ export async function updatePersonPhoto(
   return { ok: userID };
 }
 
-const PENDING = ["RECEIVED", "NEEDS_MATCH", "MATCHED"] as const;
-
 /** Approve a submission as a specific roster student → promote to Enrollee. */
 export async function approveSubmission(
   _prev: ReviewState,
@@ -129,91 +152,15 @@ export async function approveSubmission(
   const user = await requireUser();
   const t = getDictionary(await getLocale());
 
-  const submissionId = String(formData.get("submissionId") ?? "");
-  const studentId = String(formData.get("studentId") ?? "").trim();
-
-  const submission = await prisma.photoSubmission.findUnique({
-    where: { id: submissionId },
+  const res = await approveAsRoster({
+    submissionId: String(formData.get("submissionId") ?? ""),
+    studentId: String(formData.get("studentId") ?? "").trim(),
+    actorId: user.id,
   });
-  if (!submission || !PENDING.includes(submission.status as (typeof PENDING)[number])) {
-    return { error: t.common.error };
-  }
-
-  const roster = await prisma.rosterEntry.findUnique({ where: { studentId } });
-  if (!roster) return { error: t.review.rosterMissing };
-
-  let bytes: Uint8Array;
-  try {
-    bytes = await getPhotoBytes(submission.imagePath);
-  } catch {
-    return { error: t.common.error };
-  }
-
-  try {
-    const { enrollee, pushed, deviceError } = await enrollPerson({
-      displayName: roster.fullName,
-      studentId: roster.studentId,
-      shiur: roster.shiur,
-      phone: roster.phone,
-      source: "EMAIL",
-      image: bytes,
-      actorId: user.id,
-      rosterEntryId: roster.id,
-      // Confirm back to whoever emailed the photo once the door has them.
-      notifyEmail: submission.fromAddress,
-      notifyMessageId: submission.gmailMessageId,
-    });
-
-    await prisma.photoSubmission.update({
-      where: { id: submissionId },
-      data: {
-        status: "APPROVED",
-        reviewedById: user.id,
-        reviewedAt: new Date(),
-        rosterEntryId: roster.id,
-      },
-    });
-    await audit({
-      actorId: user.id,
-      action: "submission.approve",
-      targetType: "PhotoSubmission",
-      targetId: submissionId,
-      meta: { studentId, akuvoxUserId: enrollee.akuvoxUserId },
-    });
-    revalidatePath("/review");
-    if (!pushed) return { error: deviceError ?? t.common.error };
-    return {
-      ok: fmt(t.review.approvedMsg, {
-        name: enrollee.displayName,
-        userId: enrollee.akuvoxUserId,
-      }),
-    };
-  } catch (e) {
-    if (e instanceof EnrollError) return { error: e.message };
-    console.error("approve failed", e);
-    return { error: t.common.error };
-  }
-}
-
-/**
- * Find the roster entry a typed name unambiguously refers to.
- *
- * Compares sorted name tokens, so "Josefovic Dovi" matches "Dovi Josefovic" —
- * emailed subjects routinely put the surname first. Only returns a match when
- * exactly ONE roster entry fits: two talmidim with the same name must stay a
- * human decision rather than a coin toss.
- */
-async function rosterEntryForName(displayName: string) {
-  const key = (s: string) => normalizeName(s).split(" ").filter(Boolean).sort().join(" ");
-  const want = key(displayName);
-  if (!want) return null;
-
-  const rows = await prisma.rosterEntry.findMany({
-    where: { enrolleeId: null, status: { not: "ENROLLED" } },
-    select: { id: true, studentId: true, fullName: true, normalizedName: true, shiur: true, phone: true },
-  });
-  const hits = rows.filter((r) => key(r.normalizedName) === want);
-  return hits.length === 1 ? hits[0]! : null;
+  revalidatePath("/review");
+  if (!res.ok) return { error: reviewErrorText(res, t) };
+  if (res.queued) return { error: res.deviceError ?? t.common.error };
+  return { ok: fmt(t.review.approvedMsg, { name: res.name, userId: res.userId }) };
 }
 
 /** Enroll directly with a typed name (no roster needed) — for denied scans and
@@ -225,75 +172,17 @@ export async function enrollByName(
   const user = await requireUser();
   const t = getDictionary(await getLocale());
 
-  const submissionId = String(formData.get("submissionId") ?? "");
-  const displayName = String(formData.get("displayName") ?? "").trim();
-  const groupName = String(formData.get("groupName") ?? "").trim() || null;
-  const pin = String(formData.get("pin") ?? "").trim() || null;
-  if (!displayName) return { error: t.review.needName };
-
-  const submission = await prisma.photoSubmission.findUnique({
-    where: { id: submissionId },
+  const res = await approveByName({
+    submissionId: String(formData.get("submissionId") ?? ""),
+    displayName: String(formData.get("displayName") ?? ""),
+    groupName: String(formData.get("groupName") ?? "").trim() || null,
+    pin: String(formData.get("pin") ?? "").trim() || null,
+    actorId: user.id,
   });
-  if (!submission || !PENDING.includes(submission.status as (typeof PENDING)[number])) {
-    return { error: t.common.error };
-  }
-
-  let bytes: Uint8Array;
-  try {
-    bytes = await getPhotoBytes(submission.imagePath);
-  } catch {
-    return { error: t.common.error };
-  }
-
-  // Adding by name used to leave the roster untouched, so the person was on
-  // the door while the roster still said "Needs photo" and staff chased them
-  // for a picture they'd already sent. Link it when the name clearly matches.
-  const roster = await rosterEntryForName(displayName);
-
-  try {
-    const { enrollee, pushed, deviceError } = await enrollPerson({
-      displayName,
-      groupName,
-      pin,
-      studentId: roster?.studentId,
-      shiur: roster?.shiur ?? undefined,
-      phone: roster?.phone ?? undefined,
-      source: roster ? "EMAIL" : "MANUAL",
-      rosterEntryId: roster?.id,
-      image: bytes,
-      actorId: user.id,
-      notifyEmail: submission.fromAddress,
-      notifyMessageId: submission.gmailMessageId,
-    });
-    await prisma.photoSubmission.update({
-      where: { id: submissionId },
-      data: {
-        status: "APPROVED",
-        reviewedById: user.id,
-        reviewedAt: new Date(),
-        rosterEntryId: roster?.id ?? null,
-      },
-    });
-    await audit({
-      actorId: user.id,
-      action: "submission.approve",
-      targetType: "PhotoSubmission",
-      targetId: submissionId,
-      meta: { displayName, akuvoxUserId: enrollee.akuvoxUserId, byName: true },
-    });
-    revalidatePath("/review");
-    if (!pushed) return { error: deviceError ?? t.common.error };
-    return {
-      ok: fmt(t.review.approvedMsg, {
-        name: enrollee.displayName,
-        userId: enrollee.akuvoxUserId,
-      }),
-    };
-  } catch (e) {
-    if (e instanceof EnrollError) return { error: e.message };
-    console.error("enrollByName failed", e);
-    return { error: t.common.error };
-  }
+  revalidatePath("/review");
+  if (!res.ok) return { error: reviewErrorText(res, t) };
+  if (res.queued) return { error: res.deviceError ?? t.common.error };
+  return { ok: fmt(t.review.approvedMsg, { name: res.name, userId: res.userId }) };
 }
 
 /**
@@ -311,55 +200,17 @@ export async function chooseSubmissionPhoto(
 ): Promise<ReviewState> {
   const user = await requireUser();
   const t = getDictionary(await getLocale());
-
-  const submission = await prisma.photoSubmission.findUnique({
-    where: { id: submissionId },
-    select: { imagePath: true, altImagePaths: true },
-  });
-  if (!submission) return { error: t.common.error };
-  if (path === submission.imagePath) return { ok: path }; // already the one in use
-
-  // Only ever select an image that arrived with THIS submission — the key comes
-  // from the browser, so it must never be trusted as a free-form storage path.
-  if (!submission.altImagePaths.includes(path)) return { error: t.common.error };
-
-  await prisma.photoSubmission.update({
-    where: { id: submissionId },
-    data: {
-      imagePath: path,
-      altImagePaths: [
-        submission.imagePath,
-        ...submission.altImagePaths.filter((p) => p !== path),
-      ].filter(Boolean),
-    },
-  });
-  await audit({
-    actorId: user.id,
-    action: "submission.choosePhoto",
-    targetType: "PhotoSubmission",
-    targetId: submissionId,
-    meta: { chose: path, was: submission.imagePath },
-  });
+  const res = await choosePhoto({ submissionId, path, actorId: user.id });
+  if (!res.ok) return { error: t.common.error };
   revalidatePath("/review");
   return { ok: path };
 }
 
 export async function rejectSubmission(formData: FormData) {
   const user = await requireUser();
-  const submissionId = String(formData.get("submissionId") ?? "");
-  await prisma.photoSubmission.update({
-    where: { id: submissionId },
-    data: {
-      status: "REJECTED",
-      reviewedById: user.id,
-      reviewedAt: new Date(),
-    },
-  });
-  await audit({
+  await rejectOne({
+    submissionId: String(formData.get("submissionId") ?? ""),
     actorId: user.id,
-    action: "submission.reject",
-    targetType: "PhotoSubmission",
-    targetId: submissionId,
   });
   revalidatePath("/review");
 }

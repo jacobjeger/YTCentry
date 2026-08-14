@@ -13,6 +13,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **The phone app can now review and approve emailed photos.** A new Review tab
+  lists everything waiting, shows the photo, offers the roster matches as
+  one-tap approvals, and lets you add by name or reject — including picking the
+  right picture when a signature logo came along with it.
 - **The Roster page opens with how far along you are** — "29 / 82 have a photo
   on file", the percentage, a progress bar, and how many are still to come in.
   Updates as soon as you import, add, or remove someone.

@@ -95,4 +95,16 @@
         <item>F</item>
         <item>S</item>
     </string-array>
+    <!-- Review Queue -->
+    <string name="tab_review">Review</string>
+    <string name="review_title">Photos to review</string>
+    <string name="review_empty">Nothing waiting — every photo has been dealt with.</string>
+    <string name="review_source_door">Denied scan at the door</string>
+    <string name="review_no_image">No usable photo in this email.</string>
+    <string name="review_choose_photo">Which one is the person?</string>
+    <string name="review_photo_alt">Submitted photo</string>
+    <string name="review_name">Name</string>
+    <string name="review_add">Add to door</string>
+    <string name="review_reject">Reject</string>
+    <string name="review_approve_as">Approve as %1$s</string>
 </resources>

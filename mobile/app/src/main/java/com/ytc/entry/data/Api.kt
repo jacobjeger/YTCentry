@@ -41,6 +41,21 @@ private object Http {
 }
 
 /**
+ * Fetch an image from a pre-signed storage URL.
+ *
+ * No Authorization header: the signature is in the URL itself, and sending our
+ * bearer token to object storage would be both useless and careless. Returns
+ * null on any failure — a thumbnail that won't load is a placeholder, not an
+ * error worth interrupting the queue for.
+ */
+suspend fun fetchImageBytes(url: String): ByteArray? = try {
+    val resp = Http.client.get(url)
+    if (resp.status.isSuccess()) resp.body<ByteArray>() else null
+} catch (e: Exception) {
+    null
+}
+
+/**
  * Authenticated client bound to one base URL + bearer token. Every method turns
  * transport/HTTP failures into an ApiResult; a 401 flips `unauthorized` so the
  * caller (Root) can drop the token and return to Login.
@@ -89,6 +104,39 @@ class Api(
             val msg = runCatching { resp.body<EnrollResponse>().error }.getOrNull()
             ApiResult.Err(msg ?: "error_generic", resp.status.value == 401)
         }
+    }
+
+    /** Photos still awaiting a decision, newest first. */
+    suspend fun review(): ApiResult<List<SubmissionDto>> = safe {
+        val resp = Http.client.get(url("/api/mobile/review")) { auth() }
+        resp.toResult { it.body<ReviewResponse>().submissions }
+    }
+
+    suspend fun approve(req: ApproveRequest): ApiResult<ApproveResponse> = safe {
+        val resp = Http.client.post(url("/api/mobile/review/approve")) {
+            auth(); contentType(ContentType.Application.Json); setBody(req)
+        }
+        if (resp.status.isSuccess()) {
+            ApiResult.Ok(resp.body<ApproveResponse>())
+        } else {
+            val msg = runCatching { resp.body<ApproveResponse>().error }.getOrNull()
+            ApiResult.Err(msg ?: "error_generic", resp.status.value == 401)
+        }
+    }
+
+    suspend fun rejectSubmission(id: String): ApiResult<Unit> = safe {
+        val resp = Http.client.post(url("/api/mobile/review/reject")) {
+            auth(); contentType(ContentType.Application.Json); setBody(SubmissionIdRequest(id))
+        }
+        resp.toResult { }
+    }
+
+    /** Choose which image from the email should be enrolled. */
+    suspend fun chooseSubmissionPhoto(id: String, path: String): ApiResult<Unit> = safe {
+        val resp = Http.client.post(url("/api/mobile/review/photo")) {
+            auth(); contentType(ContentType.Application.Json); setBody(ChoosePhotoRequest(id, path))
+        }
+        resp.toResult { }
     }
 
     suspend fun listTemp(): ApiResult<List<TempDto>> = safe {
