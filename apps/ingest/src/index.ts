@@ -246,7 +246,9 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
     const uids = await client.search({ since }, { uid: true });
     if (!uids || uids.length === 0) return;
 
-    // Cheap pass: get Message-IDs from envelopes, skip already-ingested.
+    // Cheap pass: get Message-IDs from envelopes, skip already-ingested. This
+    // is only an OPTIMIZATION — the envelope's messageId is missing often
+    // enough that it can't be trusted as an identity (see below).
     const candidates: { uid: number; messageId: string }[] = [];
     for await (const m of client.fetch(uids, { envelope: true, uid: true }, { uid: true })) {
       candidates.push({
@@ -271,6 +273,23 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
         const msg = await client.fetchOne(c.uid, { source: true }, { uid: true });
         if (!msg || !msg.source) continue;
         const parsed = (await simpleParser(msg.source)) as ParsedMail;
+
+        /**
+         * The identity of a message is the Message-ID in its own headers, NOT
+         * whatever the envelope pass reported.
+         *
+         * IMAP kept handing back envelopes with no messageId, and the
+         * `uid-<n>-<mailbox>` fallback then became a SECOND identity for an
+         * email already stored under its real Message-ID. The unique constraint
+         * never fired, so the same photo arrived in the Review Queue twice and
+         * staff approved one and were left staring at the other. 15 of the
+         * first 82 submissions came in this way.
+         *
+         * Parsing the full source always sees the real header when there is
+         * one, so it is the only key worth deduping on.
+         */
+        const messageId = parsed.messageId?.trim() || c.messageId;
+
         const images = await extractImages(parsed);
         // Diagnostic: what does this message actually contain, and which image
         // did we put first?
@@ -281,7 +300,7 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
           }`,
         );
         const incoming: IncomingMessage = {
-          messageId: c.messageId,
+          messageId,
           from: parsed.from?.value?.[0]?.address ?? "unknown",
           subject: parsed.subject ?? "",
           image: images[0]?.bytes ?? null,
@@ -295,7 +314,7 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
         const res = await processMessage(incoming);
         // Only remember genuinely unrecorded messages; an "unusable" one now
         // has a row and dedupes on its own.
-        if (res.status === "skipped_no_image") skipped.add(c.messageId);
+        if (res.status === "skipped_no_image") skipped.add(messageId);
 
         // Ask the sender for a usable photo. Only on the transition to
         // "unusable" (i.e. the row was just created), so one reply per email.
@@ -304,7 +323,7 @@ async function processNew(client: ImapFlow, cfg: IngestConfig): Promise<void> {
             const why = await replyUnusable(cfg, {
               to: incoming.from,
               subject: incoming.subject,
-              messageId: c.messageId,
+              messageId,
               attached: (incoming.attachments ?? [])
                 .map((a) => (a.name ? `${a.name} (${a.type})` : a.type))
                 .join(", "),
