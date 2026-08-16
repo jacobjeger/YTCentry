@@ -10,3 +10,10 @@ dist
 *.tsbuildinfo
 docker-data
 tmp
+
+# Android build output. Not in the image, and — more to the point — `railway up`
+# uploads this directory as the build context: a local APK build puts 169 MB
+# here and the deploy then times out uploading it.
+mobile/build
+mobile/app/build
+**/.gradle

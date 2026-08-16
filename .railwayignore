@@ -1,0 +1,10 @@
+# Keep `railway up` snapshots small. Android build output alone is ~169 MB and
+# made deploys time out; none of it belongs in a server image.
+node_modules
+**/node_modules
+.next
+**/.next
+.git
+mobile/build
+mobile/app/build
+**/.gradle
