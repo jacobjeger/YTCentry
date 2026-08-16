@@ -275,6 +275,13 @@ export interface Dict {
     noPhotos: string;
   };
   review: {
+    sortLabel: string;
+    sortNewest: string;
+    sortOldest: string;
+    firstPage: string;
+    prevPage: string;
+    nextPage: string;
+    lastPage: string;
     title: string;
     subtitle: string;
     empty: string;
@@ -696,6 +703,13 @@ const en: Dict = {
     noPhotos: "None of the selected people have a photo.",
   },
   review: {
+    sortLabel: "Show",
+    sortNewest: "Newest first",
+    sortOldest: "Oldest first",
+    firstPage: "First page",
+    prevPage: "Previous page",
+    nextPage: "Next page",
+    lastPage: "Last page",
     title: "Review queue",
     subtitle:
       "Emailed photos matched to the roster. Approve the right person, or reject a bad photo.",
@@ -1117,6 +1131,13 @@ const he: Dict = {
     noPhotos: "לאף אחד מהאנשים שנבחרו אין תמונה.",
   },
   review: {
+    sortLabel: "הצגה",
+    sortNewest: "החדשות קודם",
+    sortOldest: "הישנות קודם",
+    firstPage: "עמוד ראשון",
+    prevPage: "העמוד הקודם",
+    nextPage: "העמוד הבא",
+    lastPage: "עמוד אחרון",
     title: "תור לאישור",
     subtitle: "תמונות שהתקבלו במייל והותאמו לרשימה. אשרו את האדם הנכון, או דחו תמונה לא תקינה.",
     empty: "אין כרגע פריטים לאישור.",

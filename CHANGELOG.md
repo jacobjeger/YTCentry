@@ -54,6 +54,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Denied door scans now open on the most recent ones.** They were sorted
+  oldest-first, so with 292 waiting the scans you actually care about sat on
+  page 13. Denied scans now default to newest-first, either queue can be
+  flipped between newest and oldest, and the pager gained jump-to-first and
+  jump-to-last buttons. Asking for a page past the end also used to show an
+  empty list instead of the last page.
 - **Emails no longer enroll the sender's company logo.** An image in a signature
   arrives looking exactly like an attached photo, so the queue was showing a
   "VISTA PACIFIC" wordmark and a court seal while the real picture — sitting in
