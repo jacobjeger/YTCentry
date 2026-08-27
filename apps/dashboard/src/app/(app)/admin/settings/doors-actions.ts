@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { prisma, encryptSecret, clientForDevice } from "@ytc/core";
+import { prisma, encryptSecret, clientForDevice, isUnreachableError } from "@ytc/core";
 import { requireAdmin } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getDictionary, fmt } from "@/lib/i18n";
@@ -39,6 +39,29 @@ const addSchema = z.object({
 
 export type DoorActionState = { error?: string; ok?: string };
 
+/**
+ * Turn whatever was pasted into a base URL the device client can use.
+ *
+ * The reader's admin page lives at a hash route, so copying the address bar
+ * gives "https://door.example.org/#/". Trailing-slash stripping alone leaves
+ * the "#", and every request then silently goes to the site root instead of
+ * /web — the fragment is never sent to the server — so the door answers with
+ * HTML and login "fails" for a reason nobody could guess from the message.
+ */
+function normalizeBaseUrl(raw: string): string {
+  const trimmed = raw.trim();
+  try {
+    const u = new URL(trimmed);
+    u.hash = "";
+    u.search = "";
+    // Keep any real path prefix, drop a bare "/" and trailing slashes.
+    const path = u.pathname.replace(/\/+$/, "");
+    return `${u.origin}${path}`;
+  } catch {
+    return trimmed.replace(/[#?].*$/, "").replace(/\/+$/, "");
+  }
+}
+
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "door";
 }
@@ -51,7 +74,7 @@ export async function addDoor(
   const t = getDictionary(await getLocale());
   const parsed = addSchema.safeParse({
     name: formData.get("name"),
-    baseUrl: String(formData.get("baseUrl") ?? "").trim().replace(/\/+$/, ""),
+    baseUrl: normalizeBaseUrl(String(formData.get("baseUrl") ?? "")),
     webPassword: formData.get("webPassword"),
     webUser: formData.get("webUser") || undefined,
     allowEmail: formData.get("allowEmail") === "on",
@@ -79,11 +102,17 @@ export async function addDoor(
   });
 
   // Smoke-test the connection so a bad URL/password is caught immediately.
+  // "Couldn't log in" covered both a door that never answered and a door that
+  // answered "wrong user or pwd" — two completely different fixes, and the
+  // message sent people to check the URL when the URL was fine.
   try {
     await clientForDevice(device).webLogin();
-  } catch {
+  } catch (e) {
     await prisma.device.delete({ where: { id: device.id } });
-    return { error: t.doors.loginFailed };
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      error: isUnreachableError(msg) ? t.doors.unreachable : t.doors.badPassword,
+    };
   }
 
   revalidatePath("/admin/settings");

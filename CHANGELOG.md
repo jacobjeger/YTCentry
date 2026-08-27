@@ -54,6 +54,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Adding a door now says which thing went wrong.** "Couldn't log in — check
+  the URL and password" covered both a door that never answered and a door that
+  answered and rejected the password — different fixes, and it pointed at the
+  URL when the URL was fine. The two are now reported separately.
+- **Pasting a door's address from the browser works.** The reader's admin page
+  is a hash route, so a copied address ends in `/#/`; that fragment survived
+  into the saved URL and sent every request to the site root instead of `/web`.
 - **Denied door scans now open on the most recent ones.** They were sorted
   oldest-first, so with 292 waiting the scans you actually care about sat on
   page 13. Denied scans now default to newest-first, either queue can be

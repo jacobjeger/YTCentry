@@ -426,6 +426,8 @@ export interface Dict {
     addDoor: string;
     invalid: string;
     loginFailed: string;
+    unreachable: string;
+    badPassword: string;
     added: string; // "{name}"
   };
   common: {
@@ -858,6 +860,8 @@ const en: Dict = {
     addDoor: "Add door",
     invalid: "Enter a name, a valid https URL, and the web password.",
     loginFailed: "Couldn't log into that door — check the URL and password.",
+    unreachable: "Couldn't reach that door. Check the address, and that the door is online.",
+    badPassword: "That door answered, but refused the username and password. The web password is set on the door itself and can differ from your other doors.",
     added: "Added {name}.",
   },
   common: {
@@ -1284,6 +1288,8 @@ const he: Dict = {
     addDoor: "הוספת דלת",
     invalid: "הזינו שם, כתובת https תקינה, וסיסמת האתר.",
     loginFailed: "לא ניתן להתחבר לדלת — בדקו את הכתובת והסיסמה.",
+    unreachable: "לא הצלחנו להגיע לדלת. בדקו את הכתובת ושהדלת מחוברת.",
+    badPassword: "הדלת ענתה אך דחתה את שם המשתמש והסיסמה. סיסמת הניהול מוגדרת על הדלת עצמה ויכולה להיות שונה מדלתות אחרות.",
     added: "{name} נוספה.",
   },
   common: {
