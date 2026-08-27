@@ -111,7 +111,11 @@ export async function addDoor(
     await prisma.device.delete({ where: { id: device.id } });
     const msg = e instanceof Error ? e.message : String(e);
     return {
-      error: isUnreachableError(msg) ? t.doors.unreachable : t.doors.badPassword,
+      error: isUnreachableError(msg)
+        ? t.doors.unreachable
+        : /locked/i.test(msg)
+          ? t.doors.locked
+          : t.doors.badPassword,
     };
   }
 

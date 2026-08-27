@@ -85,6 +85,13 @@ export interface AkuvoxConfig {
   webPassword?: string;   // the WEB login password
 }
 
+/**
+ * Fixed salt newer readers prepend before hashing the web password. Lifted
+ * verbatim from the device's own login bundle; it is not a secret, it is part
+ * of the firmware's wire format.
+ */
+const WEB_LOGIN_SALT = "rBd3mQ68jfEGo3K3";
+
 export class AkuvoxError extends Error {
   constructor(msg: string, readonly detail?: unknown) {
     super(msg);
@@ -187,26 +194,76 @@ export class AkuvoxClient {
 
   private webSession: string | null = null;
 
-  /** Log into the /web API and cache the session token. */
+  /**
+   * Log into the /web API and cache the session token.
+   *
+   * Three firmware generations are in the field and each hashes the password
+   * differently — all read out of the readers' own web bundles:
+   *
+   *   1. legacy      password = md5(pw)                     (the original door)
+   *   2. salted      password = md5(SALT + pw)              (front kitchen)
+   *   3. challenge   ask for a nonce, then base64(nonce+pw) (back kitchen)
+   *
+   * The nonce probe identifies (3) outright and costs no login attempt. Nothing
+   * distinguishes (1) from (2) without trying — both firmwares happily md5
+   * whatever you hand them, only the STORED hash differs — so those are tried
+   * in turn. That is at most two attempts, and the readers lock out after
+   * three, so a wrong password never locks a door on a single add.
+   */
   async webLogin(): Promise<string> {
     const password = this.cfg.webPassword;
     if (!password) throw new AkuvoxError("webPassword is not configured.");
     const session = randomBytes(4).toString("hex").toUpperCase();
-    const md5pw = createHash("md5").update(password).digest("hex");
-    const body = await this.webPost(
-      {
-        target: "login",
-        action: "login",
-        data: { userName: this.cfg.webUser ?? "admin", password: md5pw },
+    const md5 = (v: string) => createHash("md5").update(v).digest("hex");
+
+    // Newer firmware answers a data-less "set" with a one-time nonce; older
+    // firmware returns nothing at all, which is exactly the signal we need.
+    let nonce: string | undefined;
+    try {
+      const probe = await this.webPost(
+        { target: "login", action: "set", session, web: "1" },
         session,
-        web: "1",
-      },
-      session,
-    );
-    const token = body?.data?.token as string | undefined;
-    if (!token) throw new AkuvoxError("Web login failed (no token).", body);
-    this.webSession = token;
-    return token;
+      );
+      const value = probe?.data?.encrypt;
+      if (typeof value === "string" && value.length > 0) nonce = value;
+    } catch {
+      /* no such probe on older firmware — fall through to the md5 schemes */
+    }
+
+    const candidates = nonce
+      ? [Buffer.from(nonce + password, "utf8").toString("base64")]
+      : [md5(password), md5(WEB_LOGIN_SALT + password)];
+
+    let last: any;
+    for (const candidate of candidates) {
+      const body = await this.webPost(
+        {
+          target: "login",
+          action: "login",
+          data: { userName: this.cfg.webUser ?? "admin", password: candidate },
+          session,
+          web: "1",
+        },
+        session,
+      );
+      const token = body?.data?.token as string | undefined;
+      if (token) {
+        this.webSession = token;
+        return token;
+      }
+      last = body;
+      // -3 is the reader's own lockout. Trying the next scheme would only dig
+      // the hole deeper, so stop here.
+      if (body?.retcode === -3) break;
+    }
+
+    if (last?.retcode === -3) {
+      throw new AkuvoxError(
+        "The door is locked after repeated failed logins. Wait a few minutes, then try again.",
+        last,
+      );
+    }
+    throw new AkuvoxError("Web login failed (no token).", last);
   }
 
   private async ensureSession(): Promise<string> {

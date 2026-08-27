@@ -428,6 +428,7 @@ export interface Dict {
     loginFailed: string;
     unreachable: string;
     badPassword: string;
+    locked: string;
     added: string; // "{name}"
   };
   common: {
@@ -862,6 +863,7 @@ const en: Dict = {
     loginFailed: "Couldn't log into that door — check the URL and password.",
     unreachable: "Couldn't reach that door. Check the address, and that the door is online.",
     badPassword: "That door answered, but refused the username and password. The web password is set on the door itself and can differ from your other doors.",
+    locked: "That door is locked after repeated failed logins. Wait a few minutes, then try again.",
     added: "Added {name}.",
   },
   common: {
@@ -1290,6 +1292,7 @@ const he: Dict = {
     loginFailed: "לא ניתן להתחבר לדלת — בדקו את הכתובת והסיסמה.",
     unreachable: "לא הצלחנו להגיע לדלת. בדקו את הכתובת ושהדלת מחוברת.",
     badPassword: "הדלת ענתה אך דחתה את שם המשתמש והסיסמה. סיסמת הניהול מוגדרת על הדלת עצמה ויכולה להיות שונה מדלתות אחרות.",
+    locked: "הדלת ננעלה לאחר ניסיונות התחברות כושלים. המתינו כמה דקות ונסו שוב.",
     added: "{name} נוספה.",
   },
   common: {

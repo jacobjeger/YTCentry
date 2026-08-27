@@ -54,6 +54,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Doors running newer firmware can be added at all.** Readers ship three
+  different password schemes and only the oldest was supported, so a correct
+  password was reported as wrong. The login now detects which scheme a door
+  uses — costing no failed attempt for the newest one, and never more than two
+  for the others, so a door is never locked out by a single add.
 - **Adding a door now says which thing went wrong.** "Couldn't log in — check
   the URL and password" covered both a door that never answered and a door that
   answered and rejected the password — different fixes, and it pointed at the
