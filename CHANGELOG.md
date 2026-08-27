@@ -54,9 +54,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
-- **The doors are polled far less.** Denied-scan pulls moved from every minute
-  to every 5 minutes, and the full directory reconcile from every 30 minutes to
-  every 6 hours. The reconcile pages through all 931 users on every door, so its
+- **The doors are polled far less.** Both the denied-scan pull and the full
+  directory reconcile now run every 6 hours, down from every minute and every
+  30 minutes respectively. Denied scans therefore reach the Review Queue in the
+  next 6-hourly sweep rather than within the minute. The reconcile pages through all 931 users on every door, so its
   cost multiplies with each door added, and it only ever catches edits made on
   the reader's own screen — everything the dashboard does updates the cache
   instantly. Tunable with `DOOR_POLL_MS` and `DIRECTORY_SYNC_MS`.
