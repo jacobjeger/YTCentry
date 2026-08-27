@@ -52,8 +52,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   "Print to PDF" output) still can't be read; it lands in the Review Queue as
   unusable, naming the file, and the sender should be asked for a photo.
 
+### Changed
+
+- **The doors are polled far less.** Denied-scan pulls moved from every minute
+  to every 5 minutes, and the full directory reconcile from every 30 minutes to
+  every 6 hours. The reconcile pages through all 931 users on every door, so its
+  cost multiplies with each door added, and it only ever catches edits made on
+  the reader's own screen — everything the dashboard does updates the cache
+  instantly. Tunable with `DOOR_POLL_MS` and `DIRECTORY_SYNC_MS`.
+
 ### Fixed
 
+- **Approving an emailed photo no longer enrolls onto every door.** The per-door
+  "Receives emailed photos" setting existed but was read nowhere, so approvals
+  fell through to all active doors — harmless with one door, an access leak the
+  moment a restricted one is added.
 - **Doors running newer firmware can be added at all.** Readers ship three
   different password schemes and only the oldest was supported, so a correct
   password was reported as wrong. The login now detects which scheme a door

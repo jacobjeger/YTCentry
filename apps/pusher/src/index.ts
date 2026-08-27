@@ -132,10 +132,14 @@ async function tempPinLoop() {
 /**
  * Reconcile the directory cache with the door. Since every dashboard action
  * updates the cache instantly, this only catches edits made on the device's own
- * screen — so it runs INFREQUENTLY (default 30 min) to spare the small E16C.
+ * screen — so it runs INFREQUENTLY (default 6 hours) to spare the readers.
+ *
+ * It is the most expensive thing we do to a door: it pages through the entire
+ * user list (931 and counting) on EVERY door, so the cost multiplies with each
+ * one added. Tune with DIRECTORY_SYNC_MS.
  */
 async function directorySyncLoop() {
-  const interval = Number(process.env.DIRECTORY_SYNC_MS ?? 30 * 60 * 1000);
+  const interval = Number(process.env.DIRECTORY_SYNC_MS ?? 6 * 60 * 60 * 1000);
   while (running) {
     try {
       for (const d of await getActiveDevices()) {

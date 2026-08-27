@@ -35,7 +35,7 @@ export function loadConfig(): PusherConfig {
     pollMs: Number(process.env.PUSHER_POLL_MS ?? 3000),
     batch: Number(process.env.PUSHER_BATCH ?? 5),
     doorSnapshots: process.env.DOOR_SNAPSHOTS === "true",
-    doorPollMs: Number(process.env.DOOR_POLL_MS ?? 60000),
+    doorPollMs: Number(process.env.DOOR_POLL_MS ?? 300000),
     doorPages: Number(process.env.DOOR_PAGES ?? 3),
     accessLogStatus: process.env.ACCESS_LOG_STATUS
       ? Number(process.env.ACCESS_LOG_STATUS)

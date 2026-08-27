@@ -65,6 +65,27 @@ export async function rosterEntryForName(displayName: string) {
   return hits.length === 1 ? hits[0]! : null;
 }
 
+
+/**
+ * Doors an emailed photo should land on.
+ *
+ * Honours the per-door "Receives emailed photos" flag, which existed in
+ * Settings from the start but was read nowhere — so approvals fell through to
+ * EVERY active door. That was harmless with one door and becomes an access
+ * leak the moment a restricted door is added: approving a photo would hand
+ * that person the kitchen too.
+ *
+ * Returns undefined when no door opts in, which keeps the old "all active
+ * doors" behaviour rather than silently enrolling nobody anywhere.
+ */
+async function emailDoorIds(): Promise<string[] | undefined> {
+  const doors = await prisma.device.findMany({
+    where: { active: true, allowEmail: true },
+    select: { id: true },
+  });
+  return doors.length ? doors.map((d) => d.id) : undefined;
+}
+
 async function loadPending(submissionId: string) {
   const submission = await prisma.photoSubmission.findUnique({ where: { id: submissionId } });
   if (!submission) return null;
@@ -105,6 +126,7 @@ export async function approveAsRoster(input: {
       image: bytes,
       actorId: input.actorId,
       rosterEntryId: roster.id,
+      deviceIds: await emailDoorIds(),
       // Confirm back to whoever emailed the photo once the door has them.
       notifyEmail: submission.fromAddress,
       notifyMessageId: submission.gmailMessageId,
@@ -181,6 +203,7 @@ export async function approveByName(input: {
       rosterEntryId: roster?.id,
       image: bytes,
       actorId: input.actorId,
+      deviceIds: await emailDoorIds(),
       notifyEmail: submission.fromAddress,
       notifyMessageId: submission.gmailMessageId,
     });
