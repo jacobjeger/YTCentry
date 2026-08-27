@@ -9,6 +9,7 @@ import {
   type AddRosterState,
 } from "./actions";
 import { useT } from "@/components/LocaleProvider";
+import { listDoors, type DoorOption } from "../directory/actions";
 import { fmt } from "@/lib/i18n";
 
 const input =
@@ -19,6 +20,9 @@ export default function RosterManager() {
   const [rows, setRows] = useState<RosterRow[]>([]);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
+  const [doors, setDoors] = useState<DoorOption[]>([]);
+  /** "" = every door. Filters to people enrolled on the chosen reader. */
+  const [doorFilter, setDoorFilter] = useState("");
   const [addState, addAction, adding] = useActionState<AddRosterState, FormData>(
     addRosterEntry,
     {},
@@ -29,6 +33,7 @@ export default function RosterManager() {
   }
   useEffect(() => {
     reload();
+    listDoors().then(setDoors);
   }, []);
   useEffect(() => {
     if (addState.ok) reload();
@@ -36,12 +41,13 @@ export default function RosterManager() {
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return s
+    const byText = s
       ? rows.filter(
           (r) => r.fullName.toLowerCase().includes(s) || r.studentId.toLowerCase().includes(s),
         )
       : rows;
-  }, [rows, q]);
+    return doorFilter ? byText.filter((r) => r.onDoors.includes(doorFilter)) : byText;
+  }, [rows, q, doorFilter]);
 
   const withPhotos = filtered.filter((r) => r.hasPhoto);
   const allPhotosSelected = withPhotos.length > 0 && withPhotos.every((r) => sel.has(r.id));
@@ -105,6 +111,23 @@ export default function RosterManager() {
             placeholder={t.roster.search}
             className={`${input} flex-1 min-w-[160px]`}
           />
+          {/* Who is enrolled on which reader. Only worth offering once there
+              is more than one door. */}
+          {doors.length > 1 ? (
+            <select
+              value={doorFilter}
+              onChange={(e) => setDoorFilter(e.target.value)}
+              className={input}
+              aria-label={t.temp.filterDoor}
+            >
+              <option value="">{t.temp.allDoors}</option>
+              {doors.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <button
             onClick={download}
             disabled={[...sel].filter((id) => rows.find((r) => r.id === id)?.hasPhoto).length === 0}

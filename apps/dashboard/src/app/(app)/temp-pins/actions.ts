@@ -15,6 +15,8 @@ import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
 export interface TempPinRow {
+  /** Which door this PIN is for — the list can be filtered by it. */
+  deviceId: string;
   id: string;
   label: string;
   pin: string;
@@ -39,6 +41,7 @@ export async function listTempPinsUI(): Promise<TempPinRow[]> {
     id: p.id,
     label: p.label,
     pin: p.pin,
+    deviceId: p.deviceId,
     deviceName: dn.get(p.deviceId) ?? "",
     startsAt: p.startsAt?.toISOString() ?? null,
     expiresAt: p.expiresAt.toISOString(),

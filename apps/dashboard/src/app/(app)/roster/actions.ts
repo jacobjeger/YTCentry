@@ -140,6 +140,8 @@ export interface RosterRow {
   status: string; // AWAITING_PHOTO | MATCHED | ENROLLED
   hasPhoto: boolean;
   enrolleeId: string | null;
+  /** Device ids this person is enrolled on (empty when not enrolled). */
+  onDoors: string[];
 }
 
 /** The whole roster, newest first, with whether each person has a photo on file. */
@@ -147,7 +149,11 @@ export async function listRoster(): Promise<RosterRow[]> {
   await requireUser();
   const entries = await prisma.rosterEntry.findMany({
     orderBy: { createdAt: "desc" },
-    include: { enrollee: { select: { id: true, photoPath: true } } },
+    include: {
+      enrollee: {
+        select: { id: true, photoPath: true, devices: { select: { deviceId: true } } },
+      },
+    },
   });
   return entries.map((e) => ({
     id: e.id,
@@ -158,6 +164,7 @@ export async function listRoster(): Promise<RosterRow[]> {
     status: e.status,
     hasPhoto: !!e.enrollee?.photoPath,
     enrolleeId: e.enrollee?.id ?? null,
+    onDoors: e.enrollee?.devices.map((d) => d.deviceId) ?? [],
   }));
 }
 

@@ -46,6 +46,9 @@ function fmtStart(iso: string): string {
 export default function TempPinsManager() {
   const t = useT();
   const [pins, setPins] = useState<TempPinRow[]>([]);
+  /** "" = every door. Only offered once there is more than one. */
+  const [doorFilter, setDoorFilter] = useState("");
+
   const [doors, setDoors] = useState<{ id: string; name: string }[]>([]);
   const [, tick] = useState(0);
   const [mode, setMode] = useState<"once" | "repeat">("once");
@@ -79,6 +82,8 @@ export default function TempPinsManager() {
     const i = setInterval(() => tick((n) => n + 1), 30000);
     return () => clearInterval(i);
   }, []);
+
+  const shown = doorFilter ? pins.filter((p) => p.deviceId === doorFilter) : pins;
 
   return (
     <div className="max-w-3xl flex flex-col gap-8">
@@ -250,14 +255,31 @@ export default function TempPinsManager() {
 
       {/* Active list */}
       <div>
-        <h2 className="font-semibold mb-3">{t.temp.active}</h2>
-        {pins.length === 0 ? (
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <h2 className="font-semibold">{t.temp.active}</h2>
+          {doors.length > 1 ? (
+            <select
+              value={doorFilter}
+              onChange={(e) => setDoorFilter(e.target.value)}
+              className="rounded-lg border border-stone-300 px-2 py-1 text-sm"
+              aria-label={t.temp.filterDoor}
+            >
+              <option value="">{t.temp.allDoors}</option>
+              {doors.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
+        {shown.length === 0 ? (
           <div className="rounded-xl border border-stone-200 bg-white p-6 text-center text-stone-500">
             {t.temp.none}
           </div>
         ) : (
           <div className="rounded-xl border border-stone-200 bg-white overflow-hidden divide-y divide-stone-100">
-            {pins.map((p) => {
+            {shown.map((p) => {
               const left = countdown(p.expiresAt);
               return (
                 <div key={p.id} className="flex items-center gap-4 px-4 py-3 hover:bg-stone-50">

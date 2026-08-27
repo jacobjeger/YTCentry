@@ -35,6 +35,8 @@ export interface Dict {
     language: string;
   };
   temp: {
+    filterDoor: string;
+    allDoors: string;
     title: string;
     subtitle: string;
     label: string;
@@ -459,6 +461,8 @@ const en: Dict = {
     language: "Language",
   },
   temp: {
+    filterDoor: "Filter by door",
+    allDoors: "All doors",
     title: "Temporary PINs",
     subtitle: "Guest access codes that auto-expire — no face needed.",
     label: "Who is it for?",
@@ -897,6 +901,8 @@ const he: Dict = {
     language: "שפה",
   },
   temp: {
+    filterDoor: "סינון לפי דלת",
+    allDoors: "כל הדלתות",
     title: "קודים זמניים",
     subtitle: "קודי גישה לאורחים שפגים אוטומטית — ללא צורך בפנים.",
     label: "עבור מי?",

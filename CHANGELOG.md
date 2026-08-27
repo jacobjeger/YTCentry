@@ -64,6 +64,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Filter by door on the Roster and Temporary PINs pages.** The Roster shows
+  who is enrolled on a chosen reader; Temporary PINs shows only that door's
+  PINs. With three doors, "who has this" was otherwise unanswerable without
+  reading every row.
 - **Give or take away one person's access to one door, from the Directory.**
   Each managed person shows a chip per door: tick to push their stored photo to
   that reader, untick to delete them from it. This is how someone already
