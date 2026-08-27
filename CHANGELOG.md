@@ -68,6 +68,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   "Receives emailed photos" setting existed but was read nowhere, so approvals
   fell through to all active doors — harmless with one door, an access leak the
   moment a restricted one is added.
+- **Loading the dashboard can no longer lock a door out.** Detecting a reader's
+  password scheme costs a failed login, and readers lock after three — so a door
+  on the newer firmware was spending a failed attempt on every single
+  connection, including each door-status probe on the home page. The scheme is
+  now learned once and remembered per door.
 - **Doors running newer firmware can be added at all.** Readers ship three
   different password schemes and only the oldest was supported, so a correct
   password was reported as wrong. The login now detects which scheme a door

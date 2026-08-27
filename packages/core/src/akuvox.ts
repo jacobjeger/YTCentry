@@ -75,6 +75,11 @@ export interface AkuvoxConfig {
   apiUser: string;        // "admin"
   apiPassword: string;    // the HTTP API password (Doppler / env — never hardcode)
   timeoutMs?: number;
+  /** Known password scheme, so we don't rediscover it at the cost of a failed
+   *  attempt. One of "legacy" | "salted" | "challenge". */
+  loginScheme?: string | null;
+  /** Called once when a scheme is discovered, so the caller can remember it. */
+  onLoginScheme?: (scheme: string) => void;
   // Cloudflare Access service-token headers — required when baseUrl is the
   // Access-gated tunnel hostname (cloud push). Omit for direct LAN access.
   cfAccessClientId?: string;
@@ -230,12 +235,21 @@ export class AkuvoxClient {
       /* no such probe on older firmware — fall through to the md5 schemes */
     }
 
-    const candidates = nonce
-      ? [Buffer.from(nonce + password, "utf8").toString("base64")]
-      : [md5(password), md5(WEB_LOGIN_SALT + password)];
+    const known = this.cfg.loginScheme;
+    const schemes: { name: string; secret: string }[] = nonce
+      ? [{ name: "challenge", secret: Buffer.from(nonce + password, "utf8").toString("base64") }]
+      : known === "salted"
+        ? [{ name: "salted", secret: md5(WEB_LOGIN_SALT + password) }]
+        : known === "legacy"
+          ? [{ name: "legacy", secret: md5(password) }]
+          : [
+              { name: "legacy", secret: md5(password) },
+              { name: "salted", secret: md5(WEB_LOGIN_SALT + password) },
+            ];
 
     let last: any;
-    for (const candidate of candidates) {
+    for (const { name, secret } of schemes) {
+      const candidate = secret;
       const body = await this.webPost(
         {
           target: "login",
@@ -249,6 +263,7 @@ export class AkuvoxClient {
       const token = body?.data?.token as string | undefined;
       if (token) {
         this.webSession = token;
+        if (name !== known) this.cfg.onLoginScheme?.(name);
         return token;
       }
       last = body;

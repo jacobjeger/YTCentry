@@ -124,6 +124,10 @@ model Device {
   baseUrl       String           // tunnel URL, e.g. https://door.<your-domain>
   webUser       String   @default("admin")
   webPasswordEnc String          // AES-GCM encrypted web login password
+  /// Which password scheme this reader's firmware uses: legacy | salted |
+  /// challenge. Learned on first successful login and remembered, because
+  /// probing costs a failed attempt and the readers lock out after three.
+  loginScheme    String?
   active        Boolean  @default(true)
   allowEmail    Boolean  @default(false)
   pollSnapshots Boolean  @default(false)

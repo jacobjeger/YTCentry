@@ -27,6 +27,18 @@ export function clientForDevice(d: Device, timeoutMs = 20000): AkuvoxClient {
     cfAccessClientId: process.env.CF_ACCESS_CLIENT_ID || undefined,
     cfAccessClientSecret: process.env.CF_ACCESS_CLIENT_SECRET || undefined,
     timeoutMs,
+    // Remember which password scheme this reader uses. Without this, a door on
+    // the salted firmware burns one FAILED login every single time we connect
+    // (legacy is tried first), and three of those lock the door — so merely
+    // loading the dashboard could lock a door out.
+    loginScheme: d.loginScheme,
+    onLoginScheme: (scheme) => {
+      prisma.device
+        .update({ where: { id: d.id }, data: { loginScheme: scheme } })
+        .catch(() => {
+          /* remembering is an optimisation; a failure here must not fail login */
+        });
+    },
   });
 }
 
