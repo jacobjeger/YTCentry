@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     displayName?: string;
     groupName?: string | null;
     pin?: string | null;
+    deviceIds?: string[];
   };
   try {
     payload = await request.json();
@@ -47,15 +48,19 @@ export async function POST(request: Request) {
     return Response.json({ error: "bad_pin" }, { status: 400 });
   }
 
+  const deviceIds = Array.isArray(payload.deviceIds)
+    ? payload.deviceIds.map(String).filter(Boolean)
+    : undefined;
   const studentId = String(payload.studentId ?? "").trim();
   const res: ReviewResult = studentId
-    ? await approveAsRoster({ submissionId, studentId, actorId: user.id })
+    ? await approveAsRoster({ submissionId, studentId, actorId: user.id, deviceIds })
     : await approveByName({
         submissionId,
         displayName: String(payload.displayName ?? ""),
         groupName: payload.groupName ? String(payload.groupName).trim() : null,
         pin,
         actorId: user.id,
+        deviceIds,
       });
 
   if (!res.ok) {

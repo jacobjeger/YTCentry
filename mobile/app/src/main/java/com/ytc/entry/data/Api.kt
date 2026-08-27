@@ -106,10 +106,10 @@ class Api(
         }
     }
 
-    /** Photos still awaiting a decision, newest first. */
-    suspend fun review(): ApiResult<List<SubmissionDto>> = safe {
+    /** Photos still awaiting a decision, newest first, plus the door list. */
+    suspend fun review(): ApiResult<ReviewResponse> = safe {
         val resp = Http.client.get(url("/api/mobile/review")) { auth() }
-        resp.toResult { it.body<ReviewResponse>().submissions }
+        resp.toResult { it.body<ReviewResponse>() }
     }
 
     suspend fun approve(req: ApproveRequest): ApiResult<ApproveResponse> = safe {

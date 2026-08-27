@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +46,7 @@ import com.ytc.entry.R
 import com.ytc.entry.data.Api
 import com.ytc.entry.data.ApiResult
 import com.ytc.entry.data.ApproveRequest
+import com.ytc.entry.data.DoorDto
 import com.ytc.entry.data.SubmissionDto
 import com.ytc.entry.data.fetchImageBytes
 import kotlinx.coroutines.launch
@@ -60,6 +62,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ReviewScreen(api: Api, onUnauthorized: () -> Unit) {
     var rows by remember { mutableStateOf<List<SubmissionDto>?>(null) }
+    var doors by remember { mutableStateOf<List<DoorDto>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
     // Cards that have been dealt with, hidden immediately so the queue doesn't
@@ -70,7 +73,7 @@ fun ReviewScreen(api: Api, onUnauthorized: () -> Unit) {
         rows = null
         error = null
         when (val r = api.review()) {
-            is ApiResult.Ok -> rows = r.value
+            is ApiResult.Ok -> { rows = r.value.submissions; doors = r.value.doors }
             is ApiResult.Err -> if (r.unauthorized) onUnauthorized() else error = r.message
         }
     }
@@ -101,6 +104,7 @@ fun ReviewScreen(api: Api, onUnauthorized: () -> Unit) {
                             SubmissionCard(
                                 api = api,
                                 item = item,
+                                doors = doors,
                                 onUnauthorized = onUnauthorized,
                                 onDone = { done = done + item.id },
                             )
@@ -119,6 +123,7 @@ fun ReviewScreen(api: Api, onUnauthorized: () -> Unit) {
 private fun SubmissionCard(
     api: Api,
     item: SubmissionDto,
+    doors: List<DoorDto>,
     onUnauthorized: () -> Unit,
     onDone: () -> Unit,
 ) {
@@ -129,6 +134,10 @@ private fun SubmissionCard(
     // Which image is in use. The server keeps the chosen one first, so index 0
     // is the current photo until staff tap another.
     var chosen by remember(item.id) { mutableStateOf(item.photos.firstOrNull()?.path) }
+    // Only the everyday doors start ticked; a restricted door is deliberate.
+    var pickedDoors by remember(item.id, doors) {
+        mutableStateOf(doors.filter { it.allowEmail }.map { it.id }.toSet())
+    }
 
     fun run(block: suspend () -> ApiResult<*>) {
         if (busy) return
@@ -208,6 +217,27 @@ private fun SubmissionCard(
                 )
             }
 
+            if (doors.size > 1) {
+                Text(
+                    stringResource(R.string.doors_label),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+                doors.forEach { d ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = d.id in pickedDoors,
+                            enabled = !busy,
+                            onCheckedChange = { on ->
+                                pickedDoors =
+                                    if (on) pickedDoors + d.id else pickedDoors - d.id
+                            },
+                        )
+                        Text(d.name, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -225,7 +255,11 @@ private fun SubmissionCard(
                     onClick = {
                         run {
                             api.approve(
-                                ApproveRequest(submissionId = item.id, studentId = c.studentId),
+                                ApproveRequest(
+                                    submissionId = item.id,
+                                    studentId = c.studentId,
+                                    deviceIds = pickedDoors.toList().ifEmpty { null },
+                                ),
                             )
                         }
                     },
@@ -247,7 +281,13 @@ private fun SubmissionCard(
                     modifier = Modifier.weight(1f),
                 ) {
                     run {
-                        api.approve(ApproveRequest(submissionId = item.id, displayName = name.trim()))
+                        api.approve(
+                            ApproveRequest(
+                                submissionId = item.id,
+                                displayName = name.trim(),
+                                deviceIds = pickedDoors.toList().ifEmpty { null },
+                            ),
+                        )
                     }
                 }
                 OutlinedButton(

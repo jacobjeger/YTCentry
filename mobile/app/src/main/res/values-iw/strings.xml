@@ -107,4 +107,5 @@
     <string name="review_add">הוספה לדלת</string>
     <string name="review_reject">דחייה</string>
     <string name="review_approve_as">אישור בתור %1$s</string>
+    <string name="doors_label">אילו דלתות</string>
 </resources>

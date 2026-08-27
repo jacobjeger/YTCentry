@@ -31,6 +31,8 @@ data class ApproveRequest(
     val displayName: String? = null,
     val groupName: String? = null,
     val pin: String? = null,
+    /** Doors to enrol on. Omitted = the server's everyday-door default. */
+    val deviceIds: List<String>? = null,
 )
 
 @Serializable
@@ -48,7 +50,12 @@ data class LoginResponse(val token: String, val name: String = "", val role: Str
 data class UserDto(val name: String = "", val role: String = "")
 
 @Serializable
-data class DoorDto(val id: String, val name: String)
+data class DoorDto(
+    val id: String,
+    val name: String,
+    /** An everyday door: pre-ticked. Restricted doors must be chosen. */
+    val allowEmail: Boolean = false,
+)
 
 @Serializable
 data class BootstrapResponse(
@@ -134,7 +141,10 @@ data class SubmissionDto(
 )
 
 @Serializable
-data class ReviewResponse(val submissions: List<SubmissionDto> = emptyList())
+data class ReviewResponse(
+    val submissions: List<SubmissionDto> = emptyList(),
+    val doors: List<DoorDto> = emptyList(),
+)
 
 @Serializable
 data class ApproveResponse(

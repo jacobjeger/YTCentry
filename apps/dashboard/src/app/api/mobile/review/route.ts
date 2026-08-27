@@ -22,6 +22,14 @@ export async function GET(request: Request) {
   const user = await bearerUser(request);
   if (!user) return unauthorized();
 
+  // The app shows door checkboxes per photo, pre-ticked to the everyday doors,
+  // so it needs the same door list the web card gets.
+  const doors = await prisma.device.findMany({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true, allowEmail: true },
+  });
+
   const rows = await prisma.photoSubmission.findMany({
     where: { status: { in: [...PENDING_STATUSES] } },
     orderBy: { createdAt: "desc" },
@@ -51,5 +59,5 @@ export async function GET(request: Request) {
     })),
   );
 
-  return Response.json({ submissions });
+  return Response.json({ submissions, doors });
 }

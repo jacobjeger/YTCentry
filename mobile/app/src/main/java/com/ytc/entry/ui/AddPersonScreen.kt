@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -80,7 +81,12 @@ fun AddPersonScreen(
     var name by remember(prefillName) { mutableStateOf(prefillName ?: "") }
     var group by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
-    var doorId by remember(boot) { mutableStateOf(boot?.doors?.firstOrNull()?.id ?: "") }
+    // Everyday doors start ticked; a restricted door (kitchen) is deliberate.
+    var doorIds by remember(boot) {
+        mutableStateOf(
+            boot?.doors.orEmpty().filter { it.allowEmail }.map { it.id }.toSet(),
+        )
+    }
     var photo by remember { mutableStateOf<ByteArray?>(null) }
 
     var submitting by remember { mutableStateOf(false) }
@@ -223,13 +229,22 @@ fun AddPersonScreen(
         )
 
         if (doors.size > 1) {
-            LabeledDropdown(
-                label = stringResource(R.string.door),
-                options = doors.map { it.id to it.name },
-                selected = doorId,
-                onSelect = { doorId = it },
-                modifier = Modifier.fillMaxWidth(),
+            Text(
+                stringResource(R.string.doors_label),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
             )
+            doors.forEach { d ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = d.id in doorIds,
+                        onCheckedChange = { on ->
+                            doorIds = if (on) doorIds + d.id else doorIds - d.id
+                        },
+                    )
+                    Text(d.name)
+                }
+            }
         }
 
         if (doors.isEmpty() && boot != null) {
@@ -250,7 +265,7 @@ fun AddPersonScreen(
         LoadingButton(
             text = stringResource(R.string.enroll),
             loading = submitting,
-            enabled = name.isNotBlank() && photo != null && doors.isNotEmpty(),
+            enabled = name.isNotBlank() && photo != null && doorIds.isNotEmpty(),
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 val bytes = photo ?: return@LoadingButton
@@ -258,7 +273,7 @@ fun AddPersonScreen(
                 submitting = true
                 error = null
                 scope.launch {
-                    val deviceIds = if (doorId.isNotBlank()) listOf(doorId) else emptyList()
+                    val deviceIds = doorIds.toList()
                     val r = api.enroll(
                         displayName = name.trim(),
                         groupName = group.ifBlank { null },

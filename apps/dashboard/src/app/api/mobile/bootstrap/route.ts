@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const doors = await prisma.device.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, allowEmail: true },
   });
 
   const groups = doors.length ? await getCachedGroups(doors[0].id) : [];

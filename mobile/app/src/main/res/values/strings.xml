@@ -107,4 +107,5 @@
     <string name="review_add">Add to door</string>
     <string name="review_reject">Reject</string>
     <string name="review_approve_as">Approve as %1$s</string>
+    <string name="doors_label">Which doors</string>
 </resources>
