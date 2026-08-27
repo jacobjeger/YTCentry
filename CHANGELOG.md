@@ -62,6 +62,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   the reader's own screen — everything the dashboard does updates the cache
   instantly. Tunable with `DOOR_POLL_MS` and `DIRECTORY_SYNC_MS`.
 
+### Added
+
+- **Give or take away one person's access to one door, from the Directory.**
+  Each managed person shows a chip per door: tick to push their stored photo to
+  that reader, untick to delete them from it. This is how someone already
+  enrolled gets kitchen access without being re-enrolled.
+
 ### Fixed
 
 - **Enrolling no longer grants every door by default.** Both the Add Person

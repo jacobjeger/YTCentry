@@ -13,6 +13,8 @@ import {
   syncDeviceDirectory,
   upsertCacheRow,
   removeCacheRow,
+  getPhotoBytes,
+  clientForDevice,
 } from "@ytc/core";
 import { requireUser } from "@/lib/auth";
 import { photoKey } from "@/lib/enroll";
@@ -41,6 +43,8 @@ export async function listDoors(): Promise<DoorOption[]> {
 export type DirState = { error?: string; ok?: string };
 
 export interface DirRow {
+  /** Device ids this person is enrolled on (managed people only). */
+  onDoors: string[];
   userID: string;
   name: string;
   hasFaceOnDevice: boolean;
@@ -93,12 +97,15 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
       cached = await getCachedDirectory(id);
     }
 
-    const enrollees = await prisma.enrollee.findMany();
+    const enrollees = await prisma.enrollee.findMany({
+      include: { devices: { select: { deviceId: true } } },
+    });
     const byId = new Map(enrollees.map((e) => [String(e.akuvoxUserId), e]));
     const rows: DirRow[] = cached.rows
       .map((u) => {
         const e = byId.get(u.userID);
         return {
+          onDoors: e?.devices.map((d) => d.deviceId) ?? [],
           userID: u.userID,
           name: u.name,
           hasFaceOnDevice: u.hasFace,
@@ -128,6 +135,7 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
       )
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .map((e) => ({
+        onDoors: e.devices.map((d) => d.deviceId),
         userID: String(e.akuvoxUserId),
         name: e.displayName,
         hasFaceOnDevice: false,
@@ -483,4 +491,72 @@ export async function replacePhoto(
   });
   revalidatePath("/directory");
   return { ok: "ok" };
+}
+
+/**
+ * Grant or revoke one person's access to ONE door.
+ *
+ * Granting re-pushes their stored photo to that reader; revoking deletes the
+ * device user there and forgets the row. Both act on the named door directly
+ * rather than going through a PushJob, because the pusher executes those
+ * against the single door in its own env vars — a kitchen revoke queued that
+ * way would delete the person from the FRONT door instead.
+ */
+export async function setDoorAccess(
+  enrolleeId: string,
+  deviceId: string,
+  on: boolean,
+): Promise<DirState> {
+  const user = await requireUser();
+  const t = getDictionary(await getLocale());
+
+  const enrollee = await prisma.enrollee.findUnique({ where: { id: enrolleeId } });
+  const device = await prisma.device.findUnique({ where: { id: deviceId } });
+  if (!enrollee || !device) return { error: t.common.error };
+
+  try {
+    if (on) {
+      if (!enrollee.photoPath) return { error: t.common.error };
+      const image = await getPhotoBytes(enrollee.photoPath);
+      await clientForDevice(device).pushUserWeb({
+        userId: enrollee.akuvoxUserId,
+        name: enrollee.displayName,
+        image,
+        scheduleRelay: enrollee.scheduleRelay,
+        group: enrollee.groupName ?? undefined,
+        pin: enrollee.pin ?? undefined,
+      });
+      await prisma.enrolleeDevice.upsert({
+        where: { enrolleeId_deviceId: { enrolleeId, deviceId } },
+        create: { enrolleeId, deviceId, status: "PUSHED", pushedAt: new Date() },
+        update: { status: "PUSHED", pushedAt: new Date(), lastError: null },
+      });
+      await upsertCacheRow({
+        deviceId,
+        userID: String(enrollee.akuvoxUserId),
+        name: enrollee.displayName,
+        hasFace: true,
+        pin: enrollee.pin ?? null,
+        group: enrollee.groupName ?? null,
+      });
+    } else {
+      // Delete on the device FIRST. The reverse order would show the person as
+      // revoked while the reader still lets them in.
+      await clientForDevice(device).delUserWeb(enrollee.akuvoxUserId);
+      await prisma.enrolleeDevice.deleteMany({ where: { enrolleeId, deviceId } });
+      await removeCacheRow(deviceId, String(enrollee.akuvoxUserId));
+    }
+  } catch (e) {
+    return { error: describeDeviceError(e, on ? "grant door access" : "revoke door access") };
+  }
+
+  await audit({
+    actorId: user.id,
+    action: on ? "face.push" : "enrollee.remove",
+    targetType: "Enrollee",
+    targetId: enrolleeId,
+    meta: { door: device.name, granted: on, akuvoxUserId: enrollee.akuvoxUserId },
+  });
+  revalidatePath("/directory");
+  return { ok: device.name };
 }

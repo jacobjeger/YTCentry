@@ -362,6 +362,9 @@ export interface Dict {
     legacy: string;
     totalOnDoor: string; // "{n}"
     back: string;
+    doorAccess: string;
+    doorGrant: string;
+    doorRevoke: string;
     sortNewest: string;
     sortOldest: string;
     sortNameAz: string;
@@ -797,6 +800,9 @@ const en: Dict = {
     legacy: "Legacy",
     totalOnDoor: "{n} people on the door",
     back: "← Back to directory",
+    doorAccess: "Doors:",
+    doorGrant: "Give access to this door",
+    doorRevoke: "Remove from this door",
     sortNewest: "Newest first",
     sortOldest: "Oldest first",
     sortNameAz: "Name A–Z",
@@ -1226,6 +1232,9 @@ const he: Dict = {
     legacy: "ישן",
     totalOnDoor: "{n} אנשים בדלת",
     back: "← חזרה למדריך",
+    doorAccess: "דלתות:",
+    doorGrant: "מתן גישה לדלת הזו",
+    doorRevoke: "הסרת הגישה לדלת הזו",
     sortNewest: "החדשים ביותר",
     sortOldest: "הישנים ביותר",
     sortNameAz: "שם א׳–ת׳",

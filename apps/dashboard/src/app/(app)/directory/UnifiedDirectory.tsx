@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   loadFullDirectory,
+  setDoorAccess,
   refreshDirectory,
   listDoors,
   deleteFromDoor,
@@ -31,6 +32,62 @@ function timeAgo(iso: string | null, t: Dict): string {
   return hrs < 24
     ? fmt(t.directory.hrsAgo, { n: hrs })
     : fmt(t.directory.daysAgo, { n: Math.round(hrs / 24) });
+}
+
+
+/**
+ * Which doors this person is on. Ticking pushes their stored photo to that
+ * reader; unticking deletes them from it. Restricted doors are exactly what
+ * this is for — granting kitchen access to someone already enrolled.
+ */
+function DoorAccess({
+  enrolleeId,
+  onDoors,
+  doors,
+  onChanged,
+}: {
+  enrolleeId: string;
+  onDoors: string[];
+  doors: DoorOption[];
+  onChanged: () => void;
+}) {
+  const t = useT();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  if (doors.length < 2) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-2">
+      <span className="text-xs text-stone-500">{t.directory.doorAccess}</span>
+      {doors.map((d) => {
+        const on = onDoors.includes(d.id);
+        return (
+          <button
+            key={d.id}
+            type="button"
+            disabled={busy !== null}
+            onClick={async () => {
+              setBusy(d.id);
+              setErr(null);
+              const res = await setDoorAccess(enrolleeId, d.id, !on);
+              setBusy(null);
+              if (res.error) setErr(res.error);
+              else onChanged();
+            }}
+            className={`rounded-full px-2.5 py-1 text-xs font-medium border transition-colors disabled:opacity-50 ${
+              on
+                ? "bg-bronze text-white border-bronze"
+                : "bg-white text-stone-500 border-stone-300 hover:border-stone-400"
+            }`}
+            title={on ? t.directory.doorRevoke : t.directory.doorGrant}
+          >
+            {busy === d.id ? "…" : `${on ? "✓" : "+"} ${d.name}`}
+          </button>
+        );
+      })}
+      {err ? <span className="text-xs text-red-600">{err}</span> : null}
+    </div>
+  );
 }
 
 export default function UnifiedDirectory() {
@@ -221,6 +278,8 @@ export default function UnifiedDirectory() {
                 <tbody className="divide-y divide-stone-100">
                   {paged.map((r) => (
                     <Row
+                      doors={doors}
+                      onChanged={reload}
                       key={r.userID}
                       r={r}
                       deviceId={door}
@@ -270,11 +329,15 @@ export default function UnifiedDirectory() {
 function Row({
   r,
   deviceId,
+  doors,
   onEdit,
+  onChanged,
 }: {
   r: DirRow;
   deviceId: string;
+  doors: DoorOption[];
   onEdit: () => void;
+  onChanged: () => void;
 }) {
   const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -353,6 +416,16 @@ function Row({
                 {t.directory.repush}
               </button>
             </form>
+          ) : null}
+          {/* Which doors this person has — the way to grant a restricted door
+              to someone who is already enrolled. */}
+          {r.managed && r.enrolleeId ? (
+            <DoorAccess
+              enrolleeId={r.enrolleeId}
+              onDoors={r.onDoors}
+              doors={doors}
+              onChanged={onChanged}
+            />
           ) : null}
           {/* Update photo — available for EVERYONE on the door (managed + legacy) */}
           <form ref={replaceFormRef} action={replaceAction}>
