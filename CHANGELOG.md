@@ -64,6 +64,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Enrolling no longer grants every door by default.** Both the Add Person
+  form and the Review Queue pre-ticked every door, so a person added while more
+  than one door exists silently got access to all of them — a real grant of
+  kitchen access happened this way. Only doors marked "Receives emailed photos"
+  start ticked; a restricted door has to be chosen deliberately, and the Review
+  Queue now shows the same door checkboxes so it can be chosen there.
 - **Approving an emailed photo no longer enrolls onto every door.** The per-door
   "Receives emailed photos" setting existed but was read nowhere, so approvals
   fell through to all active doors — harmless with one door, an access leak the

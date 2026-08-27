@@ -12,6 +12,7 @@ import {
 import UpdateExistingPerson from "./UpdateExistingPerson";
 import PickFromRoster from "./PickFromRoster";
 import { useT } from "@/components/LocaleProvider";
+import { type DoorOption } from "../directory/actions";
 
 export interface ReviewItem {
   id: string;
@@ -31,11 +32,13 @@ export interface ReviewItem {
 export default function ReviewCard({
   item,
   groups,
+  doors,
   selected,
   onToggle,
 }: {
   item: ReviewItem;
   groups: string[];
+  doors: DoorOption[];
   selected?: boolean;
   onToggle?: () => void;
 }) {
@@ -169,6 +172,27 @@ export default function ReviewCard({
         {/* Primary: type a name and add (no roster needed). */}
         <form action={nameAction} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="submissionId" value={item.id} />
+          {/* Which doors. Only the everyday ones start ticked — a restricted
+              door has to be chosen on purpose, every time. */}
+          {doors.length > 1 ? (
+            <div className="w-full flex flex-wrap gap-2 mb-1">
+              {doors.map((d) => (
+                <label
+                  key={d.id}
+                  className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-1 text-sm cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    name="deviceIds"
+                    value={d.id}
+                    defaultChecked={d.allowEmail}
+                    className="accent-bronze"
+                  />
+                  {d.name}
+                </label>
+              ))}
+            </div>
+          ) : null}
           <input
             name="displayName"
             defaultValue={item.parsedName ?? ""}

@@ -100,6 +100,8 @@ export async function approveAsRoster(input: {
   submissionId: string;
   studentId: string;
   actorId: string;
+  /** Explicit door choice from the reviewer; defaults to the everyday doors. */
+  deviceIds?: string[];
 }): Promise<ReviewResult> {
   const submission = await loadPending(input.submissionId);
   if (!submission) return { ok: false, code: "not_found" };
@@ -126,7 +128,7 @@ export async function approveAsRoster(input: {
       image: bytes,
       actorId: input.actorId,
       rosterEntryId: roster.id,
-      deviceIds: await emailDoorIds(),
+      deviceIds: input.deviceIds?.length ? input.deviceIds : await emailDoorIds(),
       // Confirm back to whoever emailed the photo once the door has them.
       notifyEmail: submission.fromAddress,
       notifyMessageId: submission.gmailMessageId,
@@ -172,6 +174,8 @@ export async function approveByName(input: {
   groupName?: string | null;
   pin?: string | null;
   actorId: string;
+  /** Explicit door choice from the reviewer; defaults to the everyday doors. */
+  deviceIds?: string[];
 }): Promise<ReviewResult> {
   const displayName = input.displayName.trim();
   if (!displayName) return { ok: false, code: "name_required" };
@@ -203,7 +207,7 @@ export async function approveByName(input: {
       rosterEntryId: roster?.id,
       image: bytes,
       actorId: input.actorId,
-      deviceIds: await emailDoorIds(),
+      deviceIds: input.deviceIds?.length ? input.deviceIds : await emailDoorIds(),
       notifyEmail: submission.fromAddress,
       notifyMessageId: submission.gmailMessageId,
     });

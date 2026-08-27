@@ -5,6 +5,7 @@ import { getLocale } from "@/lib/locale";
 import { getDictionary, fmt } from "@/lib/i18n";
 import { type ReviewItem } from "./ReviewCard";
 import ReviewList from "./ReviewList";
+import { listDoors } from "../directory/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,7 @@ export default async function ReviewPage({
   // Counted first so the page number can be clamped BEFORE fetching. Asking for
   // a page past the end used to return nothing at all, which is what "jump to
   // the last page, then switch filter" did.
+  const doors = await listDoors();
   const total = await prisma.photoSubmission.count({ where });
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
@@ -194,7 +196,7 @@ export default async function ReviewPage({
         </div>
       ) : (
         <>
-          <ReviewList items={items} />
+          <ReviewList items={items} doors={doors} />
           {pageCount > 1 ? (
             <div className="mt-6 flex items-center justify-center gap-2 text-sm">
               <PageLink

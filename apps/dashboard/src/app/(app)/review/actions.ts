@@ -156,6 +156,7 @@ export async function approveSubmission(
     submissionId: String(formData.get("submissionId") ?? ""),
     studentId: String(formData.get("studentId") ?? "").trim(),
     actorId: user.id,
+    deviceIds: formData.getAll("deviceIds").map(String).filter(Boolean),
   });
   revalidatePath("/review");
   if (!res.ok) return { error: reviewErrorText(res, t) };
@@ -178,6 +179,7 @@ export async function enrollByName(
     groupName: String(formData.get("groupName") ?? "").trim() || null,
     pin: String(formData.get("pin") ?? "").trim() || null,
     actorId: user.id,
+    deviceIds: formData.getAll("deviceIds").map(String).filter(Boolean),
   });
   revalidatePath("/review");
   if (!res.ok) return { error: reviewErrorText(res, t) };

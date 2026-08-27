@@ -3,12 +3,19 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ReviewCard, { type ReviewItem } from "./ReviewCard";
+import { type DoorOption } from "../directory/actions";
 import { listGroups } from "../enroll/actions";
 import { rejectManySubmissions } from "./actions";
 import { useT } from "@/components/LocaleProvider";
 import { fmt } from "@/lib/i18n";
 
-export default function ReviewList({ items }: { items: ReviewItem[] }) {
+export default function ReviewList({
+  items,
+  doors,
+}: {
+  items: ReviewItem[];
+  doors: DoorOption[];
+}) {
   const t = useT();
   const router = useRouter();
   const [groups, setGroups] = useState<string[]>([]);
@@ -55,6 +62,7 @@ export default function ReviewList({ items }: { items: ReviewItem[] }) {
       </div>
       {items.map((item) => (
         <ReviewCard
+                            doors={doors}
           key={item.id}
           item={item}
           groups={groups}

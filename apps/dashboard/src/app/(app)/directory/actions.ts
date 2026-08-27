@@ -20,7 +20,12 @@ import { deviceClientById, describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
-export interface DoorOption { id: string; name: string }
+export interface DoorOption {
+  id: string;
+  name: string;
+  /** A "default" door: pre-ticked when enrolling. Restricted doors are not. */
+  allowEmail: boolean;
+}
 
 /** The doors to show in the Directory's door selector. */
 export async function listDoors(): Promise<DoorOption[]> {
@@ -28,7 +33,7 @@ export async function listDoors(): Promise<DoorOption[]> {
   const devices = await prisma.device.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, allowEmail: true },
   });
   return devices;
 }

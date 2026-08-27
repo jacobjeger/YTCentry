@@ -9,7 +9,12 @@ import { describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
-export interface EnrollDoor { id: string; name: string }
+export interface EnrollDoor {
+  id: string;
+  name: string;
+  /** Everyday door: pre-ticked. Restricted doors must be chosen. */
+  allowEmail: boolean;
+}
 
 /** Active doors to offer in the Add Person door picker. */
 export async function listEnrollDoors(): Promise<EnrollDoor[]> {
@@ -17,7 +22,7 @@ export async function listEnrollDoors(): Promise<EnrollDoor[]> {
   return prisma.device.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, allowEmail: true },
   });
 }
 

@@ -214,7 +214,10 @@ export default function EnrollForm() {
                   type="checkbox"
                   name="deviceIds"
                   value={d.id}
-                  defaultChecked
+                  // Only the everyday doors start ticked. A restricted door
+                  // (kitchen) must be chosen deliberately, or every person
+                  // added quietly gets access nobody granted.
+                  defaultChecked={d.allowEmail}
                   className="accent-bronze"
                 />
                 <span className="text-sm">{d.name}</span>
