@@ -1,9 +1,10 @@
 "use server";
 
 import * as XLSX from "xlsx";
-import { prisma, normalizeName, audit } from "@ytc/core";
+import { prisma, normalizeName } from "@ytc/core";
+import { audit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { authorize } from "@/lib/access";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 import { EMPTY_MAPPING, planImport, suggestMapping, type Mapping } from "./mapping";
@@ -22,8 +23,9 @@ export interface ParsedRoster {
 }
 
 export async function parseRoster(formData: FormData): Promise<ParsedRoster> {
-  await requireUser();
+  const a = await authorize("roster", "roster.parse");
   const t = getDictionary(await getLocale());
+  if (!a) return { headers: [], rows: [], suggested: EMPTY_MAPPING, error: t.common.noPermission };
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -57,8 +59,10 @@ export async function importRoster(
   _prev: ImportState,
   formData: FormData,
 ): Promise<ImportState> {
-  const user = await requireUser();
+  const a = await authorize("roster", "roster.import");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
 
   const map: Mapping = {
     studentId: String(formData.get("map_studentId") ?? ""),
@@ -146,7 +150,8 @@ export interface RosterRow {
 
 /** The whole roster, newest first, with whether each person has a photo on file. */
 export async function listRoster(): Promise<RosterRow[]> {
-  await requireUser();
+  const a = await authorize("roster", "roster.list");
+  if (!a) return [];
   const entries = await prisma.rosterEntry.findMany({
     orderBy: { createdAt: "desc" },
     include: {
@@ -175,8 +180,10 @@ export async function addRosterEntry(
   _prev: AddRosterState,
   formData: FormData,
 ): Promise<AddRosterState> {
-  const user = await requireUser();
+  const a = await authorize("roster", "roster.add");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
   const fullName = String(formData.get("fullName") ?? "").trim();
   let studentId = String(formData.get("studentId") ?? "").trim();
   const shiur = String(formData.get("shiur") ?? "").trim() || null;
@@ -208,10 +215,19 @@ export async function addRosterEntry(
 }
 
 export async function deleteRosterEntry(formData: FormData): Promise<void> {
-  const user = await requireUser();
+  const a = await authorize("roster", "roster.remove");
+  if (!a) return;
+  const user = a.user;
   const id = String(formData.get("id") ?? "");
   if (!id) return;
+  const entry = await prisma.rosterEntry.findUnique({ where: { id }, select: { fullName: true, studentId: true } });
   await prisma.rosterEntry.deleteMany({ where: { id } });
-  await audit({ actorId: user.id, action: "roster.remove", targetType: "RosterEntry", targetId: id });
+  await audit({
+    actorId: user.id,
+    action: "roster.remove",
+    targetType: "RosterEntry",
+    targetId: id,
+    meta: entry ? { fullName: entry.fullName, studentId: entry.studentId } : {},
+  });
   revalidatePath("/roster");
 }

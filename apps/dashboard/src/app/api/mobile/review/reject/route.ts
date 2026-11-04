@@ -2,14 +2,15 @@
  * POST /api/mobile/review/reject  { submissionId } -> { ok }
  * Drops a photo from the queue. Same effect as the web Reject button.
  */
-import { bearerUser, unauthorized } from "@/lib/mobileAuth";
+import { bearerAccess } from "@/lib/mobileAuth";
 import { rejectOne } from "@/lib/review";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const user = await bearerUser(request);
-  if (!user) return unauthorized();
+  const access = await bearerAccess(request, "review", "mobile.review.reject");
+  if (access instanceof Response) return access;
+  const user = access.user;
 
   let submissionId = "";
   try {

@@ -1,4 +1,5 @@
-import { requireUser } from "@/lib/auth";
+import { requireAccess } from "@/lib/access";
+import { PERMS, hasPerm } from "@/lib/portal-core";
 import AppShell from "@/components/AppShell";
 
 export default async function AppLayout({
@@ -6,9 +7,14 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireUser();
+  const a = await requireAccess();
   return (
-    <AppShell email={user.email} role={user.role}>
+    <AppShell
+      email={a.user.email}
+      isAdmin={a.isAdmin}
+      perms={PERMS.filter((p) => hasPerm(a, p))}
+      portal={a.via === "portal"}
+    >
       {children}
     </AppShell>
   );

@@ -1,7 +1,7 @@
-import { requireUser } from "@/lib/auth";
+import { requirePagePerm } from "@/lib/access";
 import UnifiedDirectory from "./UnifiedDirectory";
 
 export default async function DirectoryPage() {
-  await requireUser();
+  await requirePagePerm("view", "page.directory");
   return <UnifiedDirectory />;
 }

@@ -12,7 +12,8 @@
  * caller renders them its own way (the web from its dictionary, the app from
  * its string resources).
  */
-import { prisma, getPhotoBytes, audit, normalizeName } from "@ytc/core";
+import { prisma, getPhotoBytes, normalizeName, getActiveDevices } from "@ytc/core";
+import { audit } from "@/lib/audit";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
 
 /** Statuses a submission can still be acted on from. */
@@ -78,6 +79,14 @@ export async function rosterEntryForName(displayName: string) {
  * Returns undefined when no door opts in, which keeps the old "all active
  * doors" behaviour rather than silently enrolling nobody anywhere.
  */
+/** The doors an approval lands on when the caller picks none: the "receives
+ *  emails" doors, else every active door (what enrollPerson falls back to).
+ *  Used to check a door-scoped caller's scope before approving. */
+export async function approvalDoorIds(deviceIds: string[] | undefined): Promise<string[]> {
+  if (deviceIds?.length) return deviceIds;
+  return (await emailDoorIds()) ?? (await getActiveDevices()).map((d) => d.id);
+}
+
 async function emailDoorIds(): Promise<string[] | undefined> {
   const doors = await prisma.device.findMany({
     where: { active: true, allowEmail: true },

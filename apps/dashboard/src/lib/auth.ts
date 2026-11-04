@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import argon2 from "argon2";
 import { prisma, type StaffUser } from "@ytc/core";
 import { getCurrentUser } from "./session";
+import { getAccess, logDenied } from "./access";
 
 export async function hashPassword(plain: string): Promise<string> {
   return argon2.hash(plain);
@@ -44,9 +45,14 @@ export async function requireUser(): Promise<StaffUser> {
   return user;
 }
 
-/** Require an ADMIN. Redirects non-admins to the dashboard home. */
+/** Require an admin — a local ADMIN, or a portal session with admin rights.
+ *  Redirects non-admins to the dashboard home (logging the refusal). */
 export async function requireAdmin(): Promise<StaffUser> {
-  const user = await requireUser();
-  if (user.role !== "ADMIN") redirect("/");
-  return user;
+  const a = await getAccess();
+  if (!a) redirect("/login");
+  if (!a.isAdmin) {
+    await logDenied(a, "admin", { perm: "admin" });
+    redirect("/");
+  }
+  return a.user;
 }

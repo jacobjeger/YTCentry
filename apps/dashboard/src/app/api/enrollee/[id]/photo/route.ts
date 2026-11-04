@@ -5,7 +5,7 @@
  * Auth: a logged-in staff session (cookie). Not the agent bearer API.
  */
 import { prisma, getPhotoBytes } from "@ytc/core";
-import { getCurrentUser } from "@/lib/session";
+import { getAccess, can, logDenied, allowedDoorIds, enrolleeDoorIds } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +13,24 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser();
-  if (!user) return new Response("unauthorized", { status: 401 });
+  const a = await getAccess();
+  if (!a) return new Response("unauthorized", { status: 401 });
+  // Photos are shown on the Directory, Review and Roster screens.
+  if (!(["view", "review", "roster"] as const).some((p) => can(a, p))) {
+    await logDenied(a, "api.enrollee.photo", { perm: "view" });
+    return new Response("forbidden", { status: 403 });
+  }
 
   const { id } = await params;
   const e = await prisma.enrollee.findUnique({ where: { id } });
   if (!e || !e.photoPath) return new Response("not found", { status: 404 });
+  // Door-scoped staff may see someone on (or headed for) one of their doors.
+  const allowed = await allowedDoorIds(a);
+  const doors = allowed ? await enrolleeDoorIds(e.id) : [];
+  if (allowed && doors.length > 0 && !doors.some((d) => allowed.has(d))) {
+    await logDenied(a, "api.enrollee.photo", { scope: "doors", enrolleeId: e.id });
+    return new Response("forbidden", { status: 403 });
+  }
 
   let bytes: Uint8Array;
   try {

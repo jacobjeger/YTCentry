@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@ytc/core";
-import { requireUser } from "@/lib/auth";
+import { requireAccess, can } from "@/lib/access";
 import { getLocale } from "@/lib/locale";
 import { getDictionary, fmt } from "@/lib/i18n";
 import DoorStatus, { DoorStatusSkeleton } from "./DoorStatus";
@@ -27,19 +27,21 @@ async function stats() {
 }
 
 export default async function Home() {
-  const user = await requireUser();
+  const a = await requireAccess();
   const t = getDictionary(await getLocale());
-  const s = await stats();
+  const canView = can(a, "view");
+  const s = canView ? await stats() : null;
 
   return (
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold">
-          {fmt(t.home.welcome, { name: user.name })}
+          {fmt(t.home.welcome, { name: a.displayName })}
         </h1>
         <p className="text-stone-500">{t.home.subtitle}</p>
       </div>
 
+      {s ? (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label={t.home.peopleOnDoor} value={s.people} href="/directory" />
         <StatCard label={t.home.doors} value={s.doors} href="/directory" />
@@ -59,18 +61,22 @@ export default async function Home() {
           <StatCard label={t.home.guestCodes} value={s.guests} href="/temp-pins" />
         )}
       </div>
+      ) : null}
 
       {/* Probes the doors live, so it streams in separately — a door that is
           down only reports after its timeout and must not hold up the page. */}
-      <Suspense fallback={<DoorStatusSkeleton label={t.home.doorStatus} />}>
-        <DoorStatus />
-      </Suspense>
+      {canView ? (
+        <Suspense fallback={<DoorStatusSkeleton label={t.home.doorStatus} />}>
+          <DoorStatus />
+        </Suspense>
+      ) : null}
 
       <div>
         <h2 className="text-sm font-medium uppercase tracking-wide text-stone-400 mb-3">
           {t.home.whatToDo}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {can(a, "enroll") ? (
           <ActionCard
             href="/enroll"
             icon="➕"
@@ -78,31 +84,40 @@ export default async function Home() {
             body={t.home.addBody}
             primary
           />
+          ) : null}
+          {can(a, "review") ? (
           <ActionCard
             href="/review"
             icon="📷"
             title={t.home.reviewTitle}
             body={t.home.reviewBody}
-            badge={s.needsReview > 0 ? s.needsReview : undefined}
+            badge={s && s.needsReview > 0 ? s.needsReview : undefined}
           />
+          ) : null}
+          {can(a, "temp_pins") ? (
           <ActionCard
             href="/temp-pins"
             icon="🔑"
             title={t.home.tempTitle}
             body={t.home.tempBody}
           />
+          ) : null}
+          {can(a, "roster") ? (
           <ActionCard
             href="/roster"
             icon="📋"
             title={t.home.rosterTitle}
             body={t.home.rosterBody}
           />
+          ) : null}
+          {can(a, "view") ? (
           <ActionCard
             href="/directory"
             icon="👥"
             title={t.home.dirTitle}
             body={t.home.dirBody}
           />
+          ) : null}
         </div>
       </div>
     </div>

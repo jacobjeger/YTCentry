@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma, encryptSecret, clientForDevice, isUnreachableError } from "@ytc/core";
 import { requireAdmin } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 import { getLocale } from "@/lib/locale";
 import { getDictionary, fmt } from "@/lib/i18n";
 
@@ -70,7 +71,7 @@ export async function addDoor(
   _prev: DoorActionState,
   formData: FormData,
 ): Promise<DoorActionState> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const t = getDictionary(await getLocale());
   const parsed = addSchema.safeParse({
     name: formData.get("name"),
@@ -119,21 +120,47 @@ export async function addDoor(
     };
   }
 
+  await audit({
+    actorId: admin.id,
+    action: "door.add",
+    targetType: "Device",
+    targetId: device.id,
+    // never the password
+    meta: { key: device.key, name: device.name, baseUrl: device.baseUrl, allowEmail: device.allowEmail, pollSnapshots: device.pollSnapshots },
+  });
   revalidatePath("/admin/settings");
   return { ok: fmt(t.doors.added, { name: device.name }) };
 }
 
 export async function deleteDoor(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  if (id) await prisma.device.delete({ where: { id } });
+  if (id) {
+    const d = await prisma.device.delete({ where: { id } });
+    await audit({
+      actorId: admin.id,
+      action: "door.remove",
+      targetType: "Device",
+      targetId: id,
+      meta: { key: d.key, name: d.name },
+    });
+  }
   revalidatePath("/admin/settings");
 }
 
 export async function toggleDoorActive(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const active = formData.get("active") === "true";
-  if (id) await prisma.device.update({ where: { id }, data: { active } });
+  if (id) {
+    const d = await prisma.device.update({ where: { id }, data: { active } });
+    await audit({
+      actorId: admin.id,
+      action: "door.update",
+      targetType: "Device",
+      targetId: id,
+      meta: { key: d.key, name: d.name, active },
+    });
+  }
   revalidatePath("/admin/settings");
 }

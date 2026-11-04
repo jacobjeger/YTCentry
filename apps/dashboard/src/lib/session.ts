@@ -25,10 +25,15 @@ function secret(): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
+/** How this session was started. "portal" = /portal-sso; anything else is a
+ *  normal email + password sign-in (old cookies carry no `src` → local). */
+export type SessionSource = "local" | "portal";
+
 export interface SessionClaims {
   sub: string; // StaffUser.id
   email: string;
   role: Role;
+  src: SessionSource;
 }
 
 /** Sign a session JWT and return the raw string (no cookie). Used by the mobile
@@ -36,8 +41,9 @@ export interface SessionClaims {
 export async function signSessionToken(
   user: { id: string; email: string; role: Role },
   maxAgeSec: number = MAX_AGE,
+  src: SessionSource = "local",
 ): Promise<string> {
-  return new SignJWT({ email: user.email, role: user.role })
+  return new SignJWT({ email: user.email, role: user.role, ...(src === "portal" ? { src } : {}) })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
     .setIssuedAt()
@@ -63,6 +69,7 @@ export async function verifyToken(token: string): Promise<SessionClaims | null> 
       sub: payload.sub,
       email: String(payload.email ?? ""),
       role: payload.role as Role,
+      src: payload.src === "portal" ? "portal" : "local",
     };
   } catch {
     return null;
@@ -77,26 +84,49 @@ export async function userFromClaims(claims: SessionClaims) {
   return user;
 }
 
-export async function createSession(user: {
-  id: string;
-  email: string;
-  role: Role;
-}): Promise<void> {
-  const token = await signSessionToken(user, MAX_AGE);
-
-  const store = await cookies();
-  store.set(COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE,
-  });
+/**
+ * Cookie attributes. The site is shown inside the YTC portal's iframe, which is
+ * a cross-site context for most portal addresses, so in production the cookie
+ * is `SameSite=None; Secure; HttpOnly; Partitioned` (CHIPS) — otherwise Chrome
+ * and Safari drop it inside the frame. Server Actions keep Next's built-in
+ * Origin/Host check, so SameSite=None does not open them to CSRF.
+ * Plain http in development can't carry SameSite=None, so dev stays Lax.
+ */
+export function sessionCookieOptions(maxAge: number = MAX_AGE) {
+  const prod = process.env.NODE_ENV === "production";
+  return prod
+    ? ({ httpOnly: true, secure: true, sameSite: "none", partitioned: true, path: "/", maxAge } as const)
+    : ({ httpOnly: true, secure: false, sameSite: "lax", path: "/", maxAge } as const);
 }
 
+export async function createSession(
+  user: { id: string; email: string; role: Role },
+  src: SessionSource = "local",
+): Promise<void> {
+  const token = await signSessionToken(user, MAX_AGE, src);
+  const store = await cookies();
+  store.set(COOKIE, token, sessionCookieOptions(MAX_AGE));
+}
+
+/**
+ * Clear the session from a Server Action. Clears the current (partitioned)
+ * cookie. A route handler should prefer `clearSessionHeaders()`, which also
+ * removes a pre-portal, unpartitioned cookie (browsers keep the two apart).
+ */
 export async function destroySession(): Promise<void> {
   const store = await cookies();
-  store.delete(COOKIE);
+  store.set(COOKIE, "", sessionCookieOptions(0));
+}
+
+/** Raw Set-Cookie values that expire BOTH the partitioned cookie and any
+ *  legacy unpartitioned one, for a route handler response. */
+export function clearSessionHeaders(): string[] {
+  const base = `${COOKIE}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly`;
+  if (process.env.NODE_ENV !== "production") return [`${base}; SameSite=Lax`];
+  return [
+    `${base}; Secure; SameSite=None; Partitioned`,
+    `${base}; Secure; SameSite=Lax`,
+  ];
 }
 
 /** Verify the cookie JWT only (no DB hit). Returns claims or null. */

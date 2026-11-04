@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 import {
   prisma,
   getPhotoBytes,
-  audit,
   validateFace,
   getCachedDirectory,
   normalizeName,
 } from "@ytc/core";
-import { requireUser } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+import { authorize, firstAllowedDoorId, requireDoors } from "@/lib/access";
 import {
+  approvalDoorIds,
   approveAsRoster,
   approveByName,
   choosePhoto,
@@ -50,16 +51,13 @@ export interface PersonHit {
 
 /** Search existing people on the door (from the cache) to update their photo. */
 export async function searchExistingPeople(query: string): Promise<PersonHit[]> {
-  await requireUser();
-  const q = query.trim().toLowerCase();
+  const a = await authorize("review", "review.searchExistingPeople");
+  if (!a) return [];
+  const q = String(query ?? "").trim().toLowerCase();
   if (q.length < 2) return [];
-  const device = await prisma.device.findFirst({
-    where: { active: true },
-    orderBy: { sortOrder: "asc" },
-    select: { id: true },
-  });
-  if (!device) return [];
-  const { rows } = await getCachedDirectory(device.id);
+  const deviceId = await firstAllowedDoorId(a);
+  if (!deviceId) return [];
+  const { rows } = await getCachedDirectory(deviceId);
   return rows
     .filter((r) => r.name.toLowerCase().includes(q) || r.userID.includes(q))
     .slice(0, 8)
@@ -81,8 +79,9 @@ export interface RosterHit {
  * entry it belongs to. This lets staff pick the person themselves.
  */
 export async function searchRoster(query: string): Promise<RosterHit[]> {
-  await requireUser();
-  const q = query.trim();
+  const a = await authorize("review", "review.searchRoster");
+  if (!a) return [];
+  const q = String(query ?? "").trim();
   if (q.length < 2) return [];
   const rows = await prisma.rosterEntry.findMany({
     where: {
@@ -105,11 +104,16 @@ export async function updatePersonPhoto(
   _prev: ReviewState,
   formData: FormData,
 ): Promise<ReviewState> {
-  const user = await requireUser();
+  const a = await authorize("review", "review.updatePersonPhoto");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
   const submissionId = String(formData.get("submissionId") ?? "");
   const userID = String(formData.get("userID") ?? "").trim();
   if (!userID) return { error: t.common.error };
+  // Same door the person search reads (the first door this caller may use).
+  const deviceId = await firstAllowedDoorId(a);
+  if (!deviceId) return { error: t.common.noPermission };
 
   const submission = await prisma.photoSubmission.findUnique({ where: { id: submissionId } });
   if (!submission) return { error: t.common.error };
@@ -123,7 +127,7 @@ export async function updatePersonPhoto(
   if (!face.ok || !face.image) return { error: face.reason ?? t.common.error };
 
   try {
-    const client = await deviceClientById();
+    const client = await deviceClientById(deviceId);
     await client.replaceFaceWeb(userID, face.image);
   } catch (e) {
     return { error: describeDeviceError(e, "update photo") };
@@ -138,7 +142,7 @@ export async function updatePersonPhoto(
     action: "face.replace",
     targetType: "DeviceUser",
     targetId: userID,
-    meta: { fromSubmission: submissionId },
+    meta: { fromSubmission: submissionId, deviceId },
   });
   revalidatePath("/review");
   return { ok: userID };
@@ -149,14 +153,20 @@ export async function approveSubmission(
   _prev: ReviewState,
   formData: FormData,
 ): Promise<ReviewState> {
-  const user = await requireUser();
+  const a = await authorize("review", "review.approve");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
+  const deviceIds = formData.getAll("deviceIds").map(String).filter(Boolean);
+  if (!(await requireDoors(a, await approvalDoorIds(deviceIds), "review.approve"))) {
+    return { error: t.common.noPermission };
+  }
 
   const res = await approveAsRoster({
     submissionId: String(formData.get("submissionId") ?? ""),
     studentId: String(formData.get("studentId") ?? "").trim(),
     actorId: user.id,
-    deviceIds: formData.getAll("deviceIds").map(String).filter(Boolean),
+    deviceIds,
   });
   revalidatePath("/review");
   if (!res.ok) return { error: reviewErrorText(res, t) };
@@ -170,8 +180,14 @@ export async function enrollByName(
   _prev: ReviewState,
   formData: FormData,
 ): Promise<ReviewState> {
-  const user = await requireUser();
+  const a = await authorize("review", "review.enrollByName");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
+  const deviceIds = formData.getAll("deviceIds").map(String).filter(Boolean);
+  if (!(await requireDoors(a, await approvalDoorIds(deviceIds), "review.enrollByName"))) {
+    return { error: t.common.noPermission };
+  }
 
   const res = await approveByName({
     submissionId: String(formData.get("submissionId") ?? ""),
@@ -179,7 +195,7 @@ export async function enrollByName(
     groupName: String(formData.get("groupName") ?? "").trim() || null,
     pin: String(formData.get("pin") ?? "").trim() || null,
     actorId: user.id,
-    deviceIds: formData.getAll("deviceIds").map(String).filter(Boolean),
+    deviceIds,
   });
   revalidatePath("/review");
   if (!res.ok) return { error: reviewErrorText(res, t) };
@@ -200,8 +216,10 @@ export async function chooseSubmissionPhoto(
   submissionId: string,
   path: string,
 ): Promise<ReviewState> {
-  const user = await requireUser();
+  const a = await authorize("review", "review.choosePhoto");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
   const res = await choosePhoto({ submissionId, path, actorId: user.id });
   if (!res.ok) return { error: t.common.error };
   revalidatePath("/review");
@@ -209,7 +227,9 @@ export async function chooseSubmissionPhoto(
 }
 
 export async function rejectSubmission(formData: FormData) {
-  const user = await requireUser();
+  const a = await authorize("review", "review.reject");
+  if (!a) return;
+  const user = a.user;
   await rejectOne({
     submissionId: String(formData.get("submissionId") ?? ""),
     actorId: user.id,
@@ -219,8 +239,11 @@ export async function rejectSubmission(formData: FormData) {
 
 /** Reject several submissions at once (bulk clear from the Review Queue). */
 export async function rejectManySubmissions(ids: string[]): Promise<number> {
-  const user = await requireUser();
-  const clean = ids.map((s) => String(s)).filter(Boolean);
+  const a = await authorize("review", "review.rejectMany");
+  if (!a) return 0;
+  const user = a.user;
+  if (!Array.isArray(ids)) return 0;
+  const clean = ids.slice(0, 1000).map((s) => String(s)).filter(Boolean);
   if (clean.length === 0) return 0;
   const res = await prisma.photoSubmission.updateMany({
     where: { id: { in: clean }, status: { in: ["RECEIVED", "NEEDS_MATCH", "MATCHED"] } },

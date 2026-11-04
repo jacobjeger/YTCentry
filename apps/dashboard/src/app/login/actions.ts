@@ -6,7 +6,8 @@ import { authenticate } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
-import { audit } from "@ytc/core";
+import { audit } from "@/lib/audit";
+import { safeNext } from "@/lib/portal-core";
 
 const schema = z.object({
   email: z.string().email(),
@@ -29,7 +30,16 @@ export async function loginAction(
   if (!parsed.success) return { error: t.login.invalid };
 
   const user = await authenticate(parsed.data.email, parsed.data.password);
-  if (!user) return { error: t.login.badCreds };
+  if (!user) {
+    await audit({
+      actorId: null,
+      action: "auth.failed",
+      targetType: "StaffUser",
+      targetId: parsed.data.email.trim().toLowerCase().slice(0, 200),
+      meta: { via: "local" },
+    });
+    return { error: t.login.badCreds };
+  }
 
   await createSession(user);
   await audit({
@@ -40,7 +50,7 @@ export async function loginAction(
   });
 
   // Only allow same-site relative redirects.
-  const dest =
-    parsed.data.next && parsed.data.next.startsWith("/") ? parsed.data.next : "/";
+  // ("//evil.example" also starts with "/", so use the strict check.)
+  const dest = safeNext(parsed.data.next);
   redirect(dest);
 }

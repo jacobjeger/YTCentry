@@ -5,15 +5,16 @@
  * Validation mirrors createTempPinAction (temp-pins/actions.ts) but returns
  * error codes instead of localized strings — the app owns its own copy.
  */
-import { prisma, audit, createTempPin, listTempPins } from "@ytc/core";
-import { bearerUser, unauthorized } from "@/lib/mobileAuth";
+import { prisma, createTempPin, listTempPins } from "@ytc/core";
+import { audit } from "@/lib/audit";
+import { bearerAccess } from "@/lib/mobileAuth";
 import { describeDeviceError } from "@/lib/device";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const user = await bearerUser(request);
-  if (!user) return unauthorized();
+  const access = await bearerAccess(request, "temp_pins", "mobile.temp");
+  if (access instanceof Response) return access;
 
   const [pins, devices] = await Promise.all([
     listTempPins(),
@@ -36,8 +37,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await bearerUser(request);
-  if (!user) return unauthorized();
+  const access = await bearerAccess(request, "temp_pins", "mobile.temp");
+  if (access instanceof Response) return access;
+  const user = access.user;
 
   let body: Record<string, unknown>;
   try {
@@ -107,7 +109,7 @@ export async function POST(request: Request) {
       action: "enrollee.create",
       targetType: "TempPin",
       targetId: String(userId),
-      meta: { label, via: "mobile" },
+      meta: { label, deviceId, via: "mobile" },
     });
     return Response.json({ ok: true, pin, label, expiresAt: exp.toISOString() });
   } catch (e) {

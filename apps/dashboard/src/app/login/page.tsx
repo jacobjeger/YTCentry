@@ -6,10 +6,15 @@ import { getDictionary } from "@/lib/i18n";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
   const t = getDictionary(await getLocale());
+  // Only known codes are shown — the query string is never echoed back.
+  const portalError =
+    error && Object.prototype.hasOwnProperty.call(t.portal.errors, error)
+      ? t.portal.errors[error]
+      : null;
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
@@ -26,6 +31,14 @@ export default async function LoginPage({
           </h1>
           <p className="text-sm text-stone-500">{t.login.subtitle}</p>
         </div>
+        {portalError ? (
+          <p
+            role="alert"
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            {portalError}
+          </p>
+        ) : null}
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-6">
           <LoginForm next={next} />
         </div>

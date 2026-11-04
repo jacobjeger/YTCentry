@@ -33,6 +33,22 @@ export interface Dict {
     signOut: string;
     menu: string;
     language: string;
+    logs: string;
+  };
+  portal: {
+    /** Login-page messages for a failed portal hand-off, by code. */
+    errors: Record<string, string>;
+    noAccessTitle: string;
+    noAccessBody: string;
+    logsTitle: string;
+    logsSubtitle: string;
+    when: string;
+    who: string;
+    action: string;
+    target: string;
+    ip: string;
+    empty: string;
+    system: string;
   };
   temp: {
     filterDoor: string;
@@ -439,6 +455,7 @@ export interface Dict {
   common: {
     comingSoon: string;
     error: string;
+    noPermission: string;
   };
 }
 
@@ -459,6 +476,7 @@ const en: Dict = {
     signOut: "Sign out",
     menu: "Menu",
     language: "Language",
+    logs: "Activity Log",
   },
   temp: {
     filterDoor: "Filter by door",
@@ -541,6 +559,29 @@ const en: Dict = {
     needTime: "Enter a valid time window.",
     noDoor: "No door configured.",
     builtin: "Built-in",
+  },
+  portal: {
+    errors: {
+      portal_missing_token: "The portal sign-in link was incomplete. Open Door Access from the portal again.",
+      portal_not_configured: "Portal sign-in isn't set up on this site yet. Ask IT.",
+      portal_expired: "The portal sign-in link expired. Open Door Access from the portal again.",
+      portal_invalid_token: "The portal sign-in link wasn't valid. Open Door Access from the portal again.",
+      portal_bad_claims: "The portal didn't send a usable account. Ask IT.",
+      portal_reused: "That portal sign-in link was already used. Open Door Access from the portal again.",
+      portal_disabled: "Your login on this site is switched off. Ask the office admin.",
+      portal_error: "Portal sign-in failed. Please try again.",
+    },
+    noAccessTitle: "No access to this page",
+    noAccessBody: "Your account doesn't include this part of Door Access. Ask an admin to add the permission in the portal.",
+    logsTitle: "Activity Log",
+    logsSubtitle: "Every change and sign-in: who, when, from where, and what.",
+    when: "When",
+    who: "Who",
+    action: "Action",
+    target: "What",
+    ip: "IP",
+    empty: "Nothing logged yet.",
+    system: "system",
   },
   login: {
     title: "YTC Entry",
@@ -879,6 +920,7 @@ const en: Dict = {
   common: {
     comingSoon: "Coming soon.",
     error: "Something went wrong. Please try again.",
+    noPermission: "You don't have permission to do that (or not on that door).",
   },
 };
 
@@ -899,6 +941,7 @@ const he: Dict = {
     signOut: "התנתקות",
     menu: "תפריט",
     language: "שפה",
+    logs: "יומן פעילות",
   },
   temp: {
     filterDoor: "סינון לפי דלת",
@@ -981,6 +1024,29 @@ const he: Dict = {
     needTime: "הזינו חלון זמן תקין.",
     noDoor: "לא הוגדרה דלת.",
     builtin: "מובנה",
+  },
+  portal: {
+    errors: {
+      portal_missing_token: "קישור הכניסה מהפורטל לא היה שלם. פתחו שוב את בקרת הכניסה מהפורטל.",
+      portal_not_configured: "הכניסה דרך הפורטל עדיין לא הוגדרה באתר הזה. פנו ל‑IT.",
+      portal_expired: "פג תוקף קישור הכניסה מהפורטל. פתחו שוב את בקרת הכניסה מהפורטל.",
+      portal_invalid_token: "קישור הכניסה מהפורטל אינו תקין. פתחו שוב את בקרת הכניסה מהפורטל.",
+      portal_bad_claims: "הפורטל לא שלח פרטי חשבון תקינים. פנו ל‑IT.",
+      portal_reused: "קישור הכניסה הזה כבר נוצל. פתחו שוב את בקרת הכניסה מהפורטל.",
+      portal_disabled: "החשבון שלך באתר הזה מושבת. פנו למנהל המשרד.",
+      portal_error: "הכניסה דרך הפורטל נכשלה. נסו שוב.",
+    },
+    noAccessTitle: "אין גישה לעמוד הזה",
+    noAccessBody: "החשבון שלך אינו כולל את החלק הזה של בקרת הכניסה. בקשו ממנהל להוסיף את ההרשאה בפורטל.",
+    logsTitle: "יומן פעילות",
+    logsSubtitle: "כל שינוי וכל כניסה: מי, מתי, מאיפה ומה.",
+    when: "מתי",
+    who: "מי",
+    action: "פעולה",
+    target: "מה",
+    ip: "IP",
+    empty: "עדיין לא נרשם דבר.",
+    system: "מערכת",
   },
   login: {
     title: "YTC Entry",
@@ -1313,6 +1379,7 @@ const he: Dict = {
   common: {
     comingSoon: "בקרוב.",
     error: "משהו השתבש. נסו שוב.",
+    noPermission: "אין לך הרשאה לפעולה הזו (או לא בדלת הזו).",
   },
 };
 

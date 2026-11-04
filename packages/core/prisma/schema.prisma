@@ -65,6 +65,18 @@ model StaffUser {
   role         Role     @default(STAFF)
   createdAt    DateTime @default(now())
 
+  /// YTC central portal (SSO). Set and refreshed on every portal sign-in; only
+  /// applied to sessions that came in through /portal-sso. A local password
+  /// sign-in keeps using `role` exactly as before.
+  portalManaged  Boolean   @default(false)
+  portalSub      String?
+  portalName     String?
+  portalIsAdmin  Boolean   @default(false)
+  portalPerms    String[]  @default([])
+  /// Raw `scope` claim from the token (null = no scope = every door).
+  portalScope    Json?
+  portalSyncedAt DateTime?
+
   enrollees Enrollee[]      @relation("createdBy")
   reviews   PhotoSubmission[] @relation("reviewedBy")
   audits    AuditLog[]
@@ -270,4 +282,12 @@ model AuditLog {
   createdAt  DateTime   @default(now())
 
   @@index([targetType, targetId])
+}
+
+/// One-time portal SSO tokens already redeemed (replay guard). Pruned after a day.
+model PortalJti {
+  jti    String   @id
+  usedAt DateTime @default(now())
+
+  @@index([usedAt])
 }

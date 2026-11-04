@@ -1,10 +1,10 @@
-import { requireUser } from "@/lib/auth";
+import { requirePagePerm } from "@/lib/access";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 import EnrollForm from "./EnrollForm";
 
 export default async function EnrollPage() {
-  await requireUser();
+  await requirePagePerm("enroll", "page.enroll");
   const t = getDictionary(await getLocale());
   return (
     <div className="max-w-2xl">

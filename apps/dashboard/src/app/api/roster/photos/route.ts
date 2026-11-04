@@ -1,12 +1,13 @@
 import JSZip from "jszip";
 import { prisma, getPhotoBytes } from "@ytc/core";
-import { requireUser } from "@/lib/auth";
+import { authorizeRoute } from "@/lib/access";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 
 /** Zip the photos of the selected roster people, each named by the person. */
 export async function GET(req: Request) {
-  await requireUser();
+  const a = await authorizeRoute("roster", "api.roster.photos");
+  if (a instanceof Response) return a;
   const t = getDictionary(await getLocale());
   const ids = (new URL(req.url).searchParams.get("ids") ?? "")
     .split(",")

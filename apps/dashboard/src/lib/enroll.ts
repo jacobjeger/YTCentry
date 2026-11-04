@@ -15,7 +15,6 @@ import {
   validateFace,
   putPhoto,
   allocateUserId,
-  audit,
   ID_BAND_START,
   getActiveDevices,
   clientForDevice,
@@ -24,6 +23,7 @@ import {
   type Enrollee,
   type Device,
 } from "@ytc/core";
+import { audit } from "@/lib/audit";
 
 export class EnrollError extends Error {}
 

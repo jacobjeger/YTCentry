@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { prisma, audit } from "@ytc/core";
+import { prisma } from "@ytc/core";
+import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";

@@ -4,13 +4,14 @@
  * cached group labels (never hits the door) and the active doors.
  */
 import { prisma, getCachedGroups } from "@ytc/core";
-import { bearerUser, unauthorized } from "@/lib/mobileAuth";
+import { bearerAccess } from "@/lib/mobileAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const user = await bearerUser(request);
-  if (!user) return unauthorized();
+  const access = await bearerAccess(request, "view", "mobile.bootstrap");
+  if (access instanceof Response) return access;
+  const user = access.user;
 
   const doors = await prisma.device.findMany({
     where: { active: true },

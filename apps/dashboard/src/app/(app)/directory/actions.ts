@@ -5,7 +5,6 @@ import {
   prisma,
   validateFace,
   putPhoto,
-  audit,
   ID_BAND_START,
   getCachedDirectory,
   getCachedGroups,
@@ -16,7 +15,20 @@ import {
   getPhotoBytes,
   clientForDevice,
 } from "@ytc/core";
-import { requireUser } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+import {
+  authorize,
+  authorizeAny,
+  can,
+  allowedDoorIds,
+  canUseDoor,
+  filterDoors,
+  firstAllowedDoorId,
+  requireDoors,
+  enrolleeDoorIds,
+  logDenied,
+  type Access,
+} from "@/lib/access";
 import { photoKey } from "@/lib/enroll";
 import { deviceClientById, describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
@@ -31,13 +43,15 @@ export interface DoorOption {
 
 /** The doors to show in the Directory's door selector. */
 export async function listDoors(): Promise<DoorOption[]> {
-  await requireUser();
+  // Shared by the Directory, Review Queue and Roster screens.
+  const a = await authorizeAny(["view", "review", "roster"], "directory.listDoors");
+  if (!a) return [];
   const devices = await prisma.device.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
     select: { id: true, name: true, allowEmail: true },
   });
-  return devices;
+  return filterDoors(a, devices);
 }
 
 export type DirState = { error?: string; ok?: string };
@@ -62,15 +76,22 @@ export interface DirRow {
   lastError?: string | null;
 }
 
-/** One unified view: EVERYONE on the door (live), merged with our records. */
-async function resolveDeviceId(deviceId?: string): Promise<string | null> {
-  if (deviceId) return deviceId;
-  const first = await prisma.device.findFirst({
-    where: { active: true },
-    orderBy: { sortOrder: "asc" },
-    select: { id: true },
-  });
-  return first?.id ?? null;
+/**
+ * The door to act on: the one asked for (if it is in the caller's door scope),
+ * else the first active door they may use. "denied" when the named door is out
+ * of scope — logged, and never silently swapped for another door.
+ */
+async function resolveDeviceId(
+  a: Access,
+  deviceId: string | undefined,
+  what: string,
+): Promise<string | null | "denied"> {
+  if (deviceId) {
+    if (await canUseDoor(a, deviceId)) return deviceId;
+    await logDenied(a, what, { scope: "doors", deviceId });
+    return "denied";
+  }
+  return firstAllowedDoorId(a);
 }
 
 /** Read the door directory from the local CACHE (instant). Falls back to a live
@@ -83,10 +104,14 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
   syncedAt?: string | null;
   error?: string;
 }> {
-  await requireUser();
+  const a = await authorize("view", "directory.load");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  // PINs are door codes: only people who may change access see them.
+  const showPins = can(a, "edit_access");
   try {
-    const id = await resolveDeviceId(deviceId);
+    const id = await resolveDeviceId(a, deviceId, "directory.load");
+    if (id === "denied") return { error: t.common.noPermission };
     if (!id) return { error: t.directory.noDoor };
 
     let cached = await getCachedDirectory(id);
@@ -115,7 +140,7 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
           status: e?.status,
           studentId: e?.studentId ?? null,
           shiur: e?.shiur ?? null,
-          pin: u.pin,
+          pin: showPins ? u.pin : null,
           group: u.group,
         };
       })
@@ -126,12 +151,17 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
     // their photo is saved and the pusher is retrying them. Surface them at the
     // top, flagged, so staff can see who is still waiting and view the photo.
     const onDoor = new Set(cached.rows.map((u) => u.userID));
+    const allowed = await allowedDoorIds(a);
     const waiting: DirRow[] = enrollees
       .filter(
         (e) =>
           e.status !== "REMOVED" &&
           e.status !== "PUSHED" &&
-          !onDoor.has(String(e.akuvoxUserId)),
+          !onDoor.has(String(e.akuvoxUserId)) &&
+          // door-scoped staff only see people headed for one of their doors
+          (allowed === null ||
+            e.devices.length === 0 ||
+            e.devices.some((d) => allowed.has(d.deviceId))),
       )
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .map((e) => ({
@@ -145,7 +175,7 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
         status: e.status,
         studentId: e.studentId ?? null,
         shiur: e.shiur ?? null,
-        pin: e.pin ?? null,
+        pin: showPins ? (e.pin ?? null) : null,
         group: e.groupName ?? null,
         pending: true,
         lastError: e.lastError,
@@ -165,10 +195,12 @@ export async function loadFullDirectory(deviceId?: string): Promise<{
 
 /** Force a fresh pull from the door into the cache (the Refresh button). */
 export async function refreshDirectory(deviceId?: string): Promise<{ error?: string }> {
-  await requireUser();
+  const a = await authorize("view", "directory.refresh");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
   try {
-    const id = await resolveDeviceId(deviceId);
+    const id = await resolveDeviceId(a, deviceId, "directory.refresh");
+    if (id === "denied") return { error: t.common.noPermission };
     if (!id) return { error: t.directory.noDoorShort };
     const device = await prisma.device.findUnique({ where: { id } });
     if (device) await syncDeviceDirectory(device);
@@ -191,9 +223,11 @@ export async function getPersonDetail(
   userID: string,
   deviceId?: string,
 ): Promise<PersonDetail> {
-  await requireUser();
+  const a = await authorize("edit_access", "directory.getPersonDetail");
   const t = getDictionary(await getLocale());
-  const id = await resolveDeviceId(deviceId);
+  if (!a) return { name: "", pin: "", group: "", groups: [], error: t.common.noPermission };
+  const id = await resolveDeviceId(a, deviceId, "directory.getPersonDetail");
+  if (id === "denied") return { name: "", pin: "", group: "", groups: [], error: t.common.noPermission };
   if (!id) return { name: "", pin: "", group: "", groups: [], error: t.directory.noDoorShort };
   // Read the CACHE — no device hit when opening the edit modal.
   const [person, groups] = await Promise.all([
@@ -213,10 +247,19 @@ export async function savePersonEdit(
   _prev: DirState,
   formData: FormData,
 ): Promise<DirState> {
-  const user = await requireUser();
+  const a = await authorize("edit_access", "directory.savePersonEdit");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
   const userID = String(formData.get("userID") ?? "").trim();
-  const deviceId = String(formData.get("deviceId") ?? "") || undefined;
+  const did = await resolveDeviceId(
+    a,
+    String(formData.get("deviceId") ?? "") || undefined,
+    "directory.savePersonEdit",
+  );
+  if (did === "denied") return { error: t.common.noPermission };
+  if (!did) return { error: t.directory.noDoorShort };
+  const deviceId = did;
   const name = String(formData.get("name") ?? "").trim();
   const pin = String(formData.get("pin") ?? "").trim();
   const group = String(formData.get("group") ?? "").trim();
@@ -245,8 +288,7 @@ export async function savePersonEdit(
     });
   }
   // Update the cache immediately so the directory reflects the edit at once.
-  const did = await resolveDeviceId(deviceId);
-  if (did) {
+  {
     await prisma.deviceUserCache.updateMany({
       where: { deviceId: did, userID },
       data: { ...(name ? { name } : {}), pin: pin || null, groupName: group || null },
@@ -257,7 +299,7 @@ export async function savePersonEdit(
     action: "enrollee.update",
     targetType: "DeviceUser",
     targetId: userID,
-    meta: { pinSet: !!pin, group },
+    meta: { pinSet: !!pin, group, deviceId, ...(name ? { name } : {}) },
   });
   revalidatePath("/directory");
   return { ok: "saved" };
@@ -268,10 +310,19 @@ export async function updatePhotoOnDoor(
   _prev: DirState,
   formData: FormData,
 ): Promise<DirState> {
-  const user = await requireUser();
+  const a = await authorize("enroll", "directory.updatePhotoOnDoor");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
   const userID = String(formData.get("userID") ?? "").trim();
-  const deviceId = String(formData.get("deviceId") ?? "") || undefined;
+  const did = await resolveDeviceId(
+    a,
+    String(formData.get("deviceId") ?? "") || undefined,
+    "directory.updatePhotoOnDoor",
+  );
+  if (did === "denied") return { error: t.common.noPermission };
+  if (!did) return { error: t.directory.noDoorShort };
+  const deviceId = did;
   const file = formData.get("photo");
   if (!userID || !(file instanceof File) || file.size === 0) return { error: t.common.error };
 
@@ -298,30 +349,39 @@ export async function updatePhotoOnDoor(
       });
     }
   }
-  const did = await resolveDeviceId(deviceId);
-  if (did) {
-    await prisma.deviceUserCache.updateMany({
-      where: { deviceId: did, userID },
-      data: { hasFace: true },
-    });
-  }
-  await audit({ actorId: user.id, action: "face.replace", targetType: "DeviceUser", targetId: userID });
+  await prisma.deviceUserCache.updateMany({
+    where: { deviceId: did, userID },
+    data: { hasFace: true },
+  });
+  await audit({
+    actorId: user.id,
+    action: "face.replace",
+    targetType: "DeviceUser",
+    targetId: userID,
+    meta: { deviceId },
+  });
   revalidatePath("/directory");
   return { ok: "ok" };
 }
 
 /** Delete ANY user from the door (admin device management; confirmed in the UI). */
 export async function deleteFromDoor(formData: FormData) {
-  const user = await requireUser();
+  const a = await authorize("remove", "directory.deleteFromDoor");
+  if (!a) return;
+  const user = a.user;
   const userID = String(formData.get("userID") ?? "").trim();
-  const deviceId = String(formData.get("deviceId") ?? "") || undefined;
   if (!userID) return;
-  const client = await deviceClientById(deviceId);
+  const did = await resolveDeviceId(
+    a,
+    String(formData.get("deviceId") ?? "") || undefined,
+    "directory.deleteFromDoor",
+  );
+  if (!did || did === "denied") return;
+  const client = await deviceClientById(did);
   await client.delAnyUserWeb(userID);
 
   // Drop it from the cache at once so the directory updates immediately.
-  const did = await resolveDeviceId(deviceId);
-  if (did) await removeCacheRow(did, userID);
+  await removeCacheRow(did, userID);
 
   const n = Number(userID);
   if (n >= ID_BAND_START) {
@@ -335,7 +395,7 @@ export async function deleteFromDoor(formData: FormData) {
     action: "enrollee.remove",
     targetType: "DeviceUser",
     targetId: userID,
-    meta: { legacy: n < ID_BAND_START },
+    meta: { legacy: n < ID_BAND_START, deviceId: did },
   });
 }
 
@@ -362,9 +422,12 @@ function snapshot(e: {
 
 /** Re-queue a fresh ADD + UPDATE_FACE, clearing any stale/failed jobs. */
 export async function repushEnrollee(formData: FormData) {
-  const user = await requireUser();
+  const a = await authorize("enroll", "directory.repushEnrollee");
+  if (!a) return;
+  const user = a.user;
   const e = await loadManaged(String(formData.get("id")));
   if (!e) return;
+  if (!(await requireDoors(a, await enrolleeDoorIds(e.id), "directory.repushEnrollee"))) return;
   await prisma.$transaction(async (tx) => {
     await tx.pushJob.deleteMany({ where: { enrolleeId: e.id } });
     await tx.pushJob.createMany({
@@ -400,11 +463,14 @@ export async function repushEnrollee(formData: FormData) {
  * someone we just removed the moment the door returns.
  */
 export async function removeWaitingEnrollee(formData: FormData) {
-  const user = await requireUser();
+  const a = await authorize("remove", "directory.removeWaitingEnrollee");
+  if (!a) return;
+  const user = a.user;
   const id = String(formData.get("enrolleeId") ?? "").trim();
   if (!id) return;
   const e = await prisma.enrollee.findUnique({ where: { id } });
   if (!e) return;
+  if (!(await requireDoors(a, await enrolleeDoorIds(id), "directory.removeWaitingEnrollee"))) return;
 
   await prisma.$transaction(async (tx) => {
     await tx.enrolleeDevice.deleteMany({ where: { enrolleeId: id } });
@@ -425,15 +491,18 @@ export async function removeWaitingEnrollee(formData: FormData) {
     action: "enrollee.remove",
     targetType: "Enrollee",
     targetId: id,
-    meta: { akuvoxUserId: e.akuvoxUserId, neverPushed: true },
+    meta: { akuvoxUserId: e.akuvoxUserId, name: e.displayName, neverPushed: true },
   });
   revalidatePath("/directory");
 }
 
 export async function removeEnrollee(formData: FormData) {
-  const user = await requireUser();
+  const a = await authorize("remove", "directory.removeEnrollee");
+  if (!a) return;
+  const user = a.user;
   const e = await loadManaged(String(formData.get("id")));
   if (!e) return;
+  if (!(await requireDoors(a, await enrolleeDoorIds(e.id), "directory.removeEnrollee"))) return;
   await prisma.$transaction(async (tx) => {
     await tx.pushJob.deleteMany({ where: { enrolleeId: e.id } });
     await tx.pushJob.create({
@@ -445,7 +514,7 @@ export async function removeEnrollee(formData: FormData) {
     action: "enrollee.remove",
     targetType: "Enrollee",
     targetId: e.id,
-    meta: { akuvoxUserId: e.akuvoxUserId },
+    meta: { akuvoxUserId: e.akuvoxUserId, name: e.displayName },
   });
   revalidatePath("/directory");
 }
@@ -455,10 +524,15 @@ export async function replacePhoto(
   _prev: DirState,
   formData: FormData,
 ): Promise<DirState> {
-  const user = await requireUser();
+  const a = await authorize("enroll", "directory.replacePhoto");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
   const e = await loadManaged(String(formData.get("id")));
   if (!e) return { error: t.common.error };
+  if (!(await requireDoors(a, await enrolleeDoorIds(e.id), "directory.replacePhoto"))) {
+    return { error: t.common.noPermission };
+  }
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) return { error: t.common.error };
@@ -507,8 +581,14 @@ export async function setDoorAccess(
   deviceId: string,
   on: boolean,
 ): Promise<DirState> {
-  const user = await requireUser();
+  // Granting a door is an access change; taking one away is a removal.
+  const a = await authorize(on ? "edit_access" : "remove", "directory.setDoorAccess");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
+  if (!(await requireDoors(a, [deviceId], "directory.setDoorAccess"))) {
+    return { error: t.common.noPermission };
+  }
 
   const enrollee = await prisma.enrollee.findUnique({ where: { id: enrolleeId } });
   const device = await prisma.device.findUnique({ where: { id: deviceId } });
@@ -555,7 +635,12 @@ export async function setDoorAccess(
     action: on ? "face.push" : "enrollee.remove",
     targetType: "Enrollee",
     targetId: enrolleeId,
-    meta: { door: device.name, granted: on, akuvoxUserId: enrollee.akuvoxUserId },
+    meta: {
+      door: device.name,
+      granted: on,
+      akuvoxUserId: enrollee.akuvoxUserId,
+      name: enrollee.displayName,
+    },
   });
   revalidatePath("/directory");
   return { ok: device.name };

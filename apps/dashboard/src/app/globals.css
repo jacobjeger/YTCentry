@@ -23,3 +23,29 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Phones (also inside the portal's iframe): 16px inputs so iOS never zooms on
+   focus, comfortable tap targets, and no sideways page scroll at 390px —
+   wide tables scroll inside their own overflow-x-auto wrapper instead. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  button,
+  select,
+  input[type="submit"] {
+    min-height: 44px;
+  }
+}
+/* Native file pickers have a wide intrinsic width; keep them inside their box. */
+input[type="file"] {
+  max-width: 100%;
+  min-width: 0;
+}

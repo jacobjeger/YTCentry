@@ -6,14 +6,15 @@
  * enrolls the right picture. Only images that arrived with this submission are
  * accepted; the shared helper enforces that.
  */
-import { bearerUser, unauthorized } from "@/lib/mobileAuth";
+import { bearerAccess } from "@/lib/mobileAuth";
 import { choosePhoto } from "@/lib/review";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const user = await bearerUser(request);
-  if (!user) return unauthorized();
+  const access = await bearerAccess(request, "review", "mobile.review.photo");
+  if (access instanceof Response) return access;
+  const user = access.user;
 
   let body: { submissionId?: string; path?: string };
   try {

@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import {
   prisma,
-  audit,
   getCachedSchedules,
   refreshDeviceSchedules,
   clientForDevice,
 } from "@ytc/core";
 import { requireAdmin } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
 import { describeDeviceError } from "@/lib/device";

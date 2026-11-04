@@ -1,6 +1,7 @@
 "use server";
 
-import { prisma, audit } from "@ytc/core";
+import { prisma } from "@ytc/core";
+import { audit } from "@/lib/audit";
 import { requireUser, hashPassword, verifyPassword } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";

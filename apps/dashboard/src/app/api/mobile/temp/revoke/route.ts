@@ -1,14 +1,16 @@
 /** POST /api/mobile/temp/revoke  { id } -> { ok }
  *  revokeTempPin is band-guarded + name-matched (safe delete) in core. */
-import { audit, revokeTempPin } from "@ytc/core";
-import { bearerUser, unauthorized } from "@/lib/mobileAuth";
+import { revokeTempPin } from "@ytc/core";
+import { audit } from "@/lib/audit";
+import { bearerAccess } from "@/lib/mobileAuth";
 import { describeDeviceError } from "@/lib/device";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const user = await bearerUser(request);
-  if (!user) return unauthorized();
+  const access = await bearerAccess(request, "temp_pins", "mobile.temp.revoke");
+  if (access instanceof Response) return access;
+  const user = access.user;
 
   let id = "";
   try {

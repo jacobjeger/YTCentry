@@ -1,51 +1,68 @@
 /**
  * Proxy (Next 16's renamed middleware). Runs before every matched route.
  *
- * It does ONLY the cheap, edge-safe check: is a session cookie present? Real
- * verification (JWT signature + active StaffUser) happens in the data layer
- * (lib/session, lib/auth) inside Server Components / Actions, where Prisma and
- * argon2 are available. The proxy just bounces obviously-unauthenticated
- * requests to /login and keeps logged-in users out of /login.
+ * 1. Framing: every response gets `Content-Security-Policy: frame-ancestors …`
+ *    (the YTC portal only, from env PORTAL_ORIGINS) and never X-Frame-Options.
+ * 2. The cheap, edge-safe gate: is a session cookie present? Real verification
+ *    (JWT signature + active StaffUser + permission) happens in the data layer
+ *    (lib/session, lib/access) inside pages, Server Actions and route handlers.
  *
+ * Public without a session: /login, /portal-sso, /portal-manifest.json.
  * The agent queue API (/api/agent/*) and the phone-app API (/api/mobile/*)
- * authenticate with a bearer token, not the cookie, so they are excluded from
- * the cookie gate (otherwise the proxy would redirect their JSON calls to
- * /login).
+ * authenticate with a bearer token, so the cookie gate skips them (they still
+ * get the framing header).
  */
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { frameCsp } from "@/lib/frame";
 
 const SESSION_COOKIE = "ytc_session";
-const PUBLIC_PATHS = ["/login"];
+/** Reachable signed-out; a signed-in visitor is bounced home from these. */
+const LOGIN_PATHS = ["/login"];
+/** Reachable by anyone, signed in or not. */
+const OPEN_PATHS = ["/portal-sso", "/portal-manifest.json", "/logout"];
+const BEARER_PREFIXES = ["/api/agent", "/api/mobile"];
+
+const matches = (pathname: string, list: string[]) =>
+  list.some((p) => pathname === p || pathname.startsWith(p + "/"));
+
+function withFrameHeaders(res: NextResponse): NextResponse {
+  res.headers.set("Content-Security-Policy", frameCsp());
+  res.headers.delete("X-Frame-Options");
+  return res;
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSession = request.cookies.has(SESSION_COOKIE);
-  const isPublic = PUBLIC_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(p + "/"),
-  );
 
-  if (!hasSession && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+  if (matches(pathname, OPEN_PATHS) || matches(pathname, BEARER_PREFIXES)) {
+    return withFrameHeaders(NextResponse.next());
   }
 
-  if (hasSession && isPublic) {
+  const hasSession = request.cookies.has(SESSION_COOKIE);
+  const isLogin = matches(pathname, LOGIN_PATHS);
+
+  if (!hasSession && !isLogin) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    url.searchParams.set("next", pathname + request.nextUrl.search);
+    return withFrameHeaders(NextResponse.redirect(url));
+  }
+
+  if (hasSession && isLogin) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";
-    return NextResponse.redirect(url);
+    return withFrameHeaders(NextResponse.redirect(url));
   }
 
-  return NextResponse.next();
+  return withFrameHeaders(NextResponse.next());
 }
 
 export const config = {
-  // Run on everything except Next internals, static assets, the agent bearer
-  // API, and common public files.
+  // Everything except Next internals and static files.
   matcher: [
-    "/((?!api/agent|api/mobile|_next/static|_next/image|favicon.ico|toras-chaim-logo.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|toras-chaim-logo.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

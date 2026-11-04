@@ -13,6 +13,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Sign in from the YTC central portal.** Staff who open Door Access from the
+  portal's sidebar land signed in (`/portal-sso`), inside the portal's window.
+  What they can do comes from the checkboxes on their portal page — view, add
+  people, review photos, roster, change access, remove, temp PINs, activity log,
+  admin — optionally limited to certain doors. The site's own email + password
+  sign-in works exactly as before. The portal reads `/portal-manifest.json`.
+- **Activity Log page** (`/logs`): every change and sign-in with who, when,
+  the IP, and what — including failed sign-ins and refused permission checks.
+
 - **The phone app can now review and approve emailed photos.** A new Review tab
   lists everything waiting, shows the photo, offers the roster matches as
   one-tap approvals, and lets you add by name or reject — including picking the

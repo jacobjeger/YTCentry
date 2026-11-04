@@ -9,7 +9,7 @@
  * entry exactly as the web does.
  */
 import { isUnreachableError } from "@ytc/core";
-import { bearerUser, unauthorized } from "@/lib/mobileAuth";
+import { bearerAccess } from "@/lib/mobileAuth";
 import { approveAsRoster, approveByName, type ReviewResult } from "@/lib/review";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +23,9 @@ const MESSAGES: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
-  const user = await bearerUser(request);
-  if (!user) return unauthorized();
+  const access = await bearerAccess(request, "review", "mobile.review.approve");
+  if (access instanceof Response) return access;
+  const user = access.user;
 
   let payload: {
     submissionId?: string;

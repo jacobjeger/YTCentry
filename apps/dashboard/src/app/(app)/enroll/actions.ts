@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { prisma, getCachedGroups } from "@ytc/core";
-import { requireUser } from "@/lib/auth";
+import { authorize, authorizeAny, filterDoors, requireDoors } from "@/lib/access";
 import { isUnreachableError } from "@ytc/core";
 import { enrollPerson, EnrollError } from "@/lib/enroll";
 import { describeDeviceError } from "@/lib/device";
@@ -18,18 +18,21 @@ export interface EnrollDoor {
 
 /** Active doors to offer in the Add Person door picker. */
 export async function listEnrollDoors(): Promise<EnrollDoor[]> {
-  await requireUser();
-  return prisma.device.findMany({
+  const a = await authorize("enroll", "enroll.listDoors");
+  if (!a) return [];
+  const doors = await prisma.device.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
     select: { id: true, name: true, allowEmail: true },
   });
+  return filterDoors(a, doors);
 }
 
 /** The device's user groups, for the Add Person group picker. Reads the CACHE
  *  (synced by the worker) so opening Add Person never hits the door. */
 export async function listGroups(): Promise<string[]> {
-  await requireUser();
+  const a = await authorizeAny(["enroll", "review"], "enroll.listGroups");
+  if (!a) return [];
   const device = await prisma.device.findFirst({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
@@ -53,8 +56,10 @@ export async function enrollAction(
   _prev: EnrollState,
   formData: FormData,
 ): Promise<EnrollState> {
-  const user = await requireUser();
+  const a = await authorize("enroll", "enroll.add");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
 
   const parsed = schema.safeParse({
     displayName: formData.get("displayName"),
@@ -77,6 +82,9 @@ export async function enrollAction(
   const deviceIds = formData.getAll("deviceIds").map(String).filter(Boolean);
   if (deviceIds.length === 0) {
     return { error: t.enroll.pickDoor };
+  }
+  if (!(await requireDoors(a, deviceIds, "enroll.add"))) {
+    return { error: t.common.noPermission };
   }
 
   try {

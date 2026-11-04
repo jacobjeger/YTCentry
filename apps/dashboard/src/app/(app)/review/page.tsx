@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma, signedPhotoUrl, type Prisma } from "@ytc/core";
-import { requireUser } from "@/lib/auth";
+import { requirePagePerm } from "@/lib/access";
 import { getLocale } from "@/lib/locale";
 import { getDictionary, fmt } from "@/lib/i18n";
 import { type ReviewItem } from "./ReviewCard";
@@ -63,7 +63,7 @@ export default async function ReviewPage({
 }: {
   searchParams: Promise<{ source?: string; page?: string; sort?: string }>;
 }) {
-  await requireUser();
+  await requirePagePerm("review", "page.review");
   const t = getDictionary(await getLocale());
 
   const sp = await searchParams;

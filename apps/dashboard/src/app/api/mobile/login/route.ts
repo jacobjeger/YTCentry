@@ -1,5 +1,5 @@
 /** POST /api/mobile/login  { email, password } -> { token, name, role } */
-import { audit } from "@ytc/core";
+import { audit } from "@/lib/audit";
 import { authenticate } from "@/lib/auth";
 import { signMobileToken } from "@/lib/session";
 
@@ -21,6 +21,13 @@ export async function POST(request: Request) {
 
   const user = await authenticate(email, password);
   if (!user) {
+    await audit({
+      actorId: null,
+      action: "auth.failed",
+      targetType: "StaffUser",
+      targetId: email.toLowerCase().slice(0, 200),
+      meta: { via: "mobile" },
+    });
     return Response.json({ error: "bad_credentials" }, { status: 401 });
   }
 

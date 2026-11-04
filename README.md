@@ -121,11 +121,89 @@ door (kitchen = staff-only).
 
 ---
 
+## YTC central portal (single sign-on)
+
+Staff sign in once at the YTC portal and open Door Access from its sidebar; the
+site runs inside the portal's iframe. **The site's own email + password sign-in
+is unchanged** — the portal is an extra way in.
+
+**How it works**
+
+1. The portal sends the browser to `GET /portal-sso?token=<JWT>&next=/path`.
+   The token is RS256, signed by the portal, valid ~60 s, single use.
+2. `lib/portal-core.ts` verifies it with `jose`: `iss=ytc-portal`,
+   `aud=doors`, `algorithms=["RS256"]`, `clockTolerance=30`, `exp` required and
+   no more than 5 min out. Its `jti` is burned in the `PortalJti` table (pruned
+   after a day); a reused token is refused.
+3. The user is found by email or created (no usable local password). Their
+   portal name, admin flag (`role === "admin"`), `perms` and `scope` are saved
+   on the `StaffUser` (`portal*` columns) and refreshed on every portal sign-in.
+   A login switched off in Staff stays off.
+4. A normal session cookie is started, marked as a portal session; the language
+   is set from `lang`; the browser goes to `next` (only a path starting with a
+   single `/`, otherwise `/`). Any failure → `/login?error=portal_<code>` with a
+   short message; the token is never echoed or logged.
+
+**Permissions** (`lib/access.ts`, checked server-side in every page, Server
+Action and API route — hiding a button is cosmetic only):
+
+| key | allows |
+|---|---|
+| `view` | Home, door status, Directory (photos) |
+| `enroll` | Add Person, replace a photo, re-send to the door |
+| `review` | Review Queue: approve / reject emailed photos and denied scans |
+| `roster` | Roster page: upload, add, remove, download photos |
+| `edit_access` | Grant another door; edit name / PIN / group; see PINs |
+| `remove` | Remove from a door or from every door |
+| `temp_pins` | See / create / extend / revoke temporary PINs |
+| `logs` | Activity Log (`/logs`) |
+| `admin` | Settings, doors, schedules, staff — implies everything, every door |
+
+Door scope: the token may carry `scope: { "doors": ["front", …] }` using the
+door keys as listed in the manifest (the Settings door key with `-` → `_`, e.g. `kitchen_back`; the raw key is accepted too). Missing = every door. Not a list, or no known
+door = **no doors** (fail closed). Admins are never limited.
+
+Which access applies is decided by **how the session started**: a portal
+session uses the portal's perms; an email + password session (web or phone
+app) keeps today's role access — ADMIN everything, STAFF everything but
+`/admin`. To cut someone off completely, also disable them in Staff.
+
+**Framing and cookies.** Every response sends
+`Content-Security-Policy: frame-ancestors <PORTAL_ORIGINS>` (from env, with the
+portal list as default; no `X-Frame-Options`). In production the session cookie
+is `SameSite=None; Secure; HttpOnly; Partitioned` so it survives the cross-site
+iframe. In a portal session the site's own sign-out and account menu are hidden.
+
+**Manifest.** `GET /portal-manifest.json` (public, cached 5 min) lists the
+permissions, sidebar tiles and the `doors` scope options (read from the DB).
+
+**Railway variables (dashboard service)**
+
+- `PORTAL_PUBLIC_KEY` — the portal's public key PEM (literal `\n` is fine).
+- `PORTAL_ORIGINS` — optional; space-separated frame-ancestors list.
+- Run the migration once: `npm run migrate:deploy -w packages/core` with the
+  production `DATABASE_URL` (adds the `portal*` columns and `PortalJti`).
+
+**Testing** with a throwaway key pair (never the real portal key):
+
+```bash
+cd apps/dashboard
+npx tsx scripts/make-test-token.ts                       # unit tests
+npx tsx scripts/make-test-token.ts keys /tmp/pk          # make a test key pair
+PORTAL_PUBLIC_KEY="$(cat /tmp/pk/public.pem)" npm run start   # test server
+npx tsx scripts/make-test-token.ts e2e http://localhost:3000 /tmp/pk/private.pem
+npx tsx scripts/make-test-token.ts sign /tmp/pk/private.pem --perms view,enroll --scope '{"doors":["front"]}'
+```
+
+---
+
 ## Known follow-ups
 
 - **Groups & Schedules management UI** — assignment works (a person's
   group + access schedule); the create/edit screens are pending.
 - **Scan log** — a text-only "when each person scanned" history (cheap; the
-  device already logs it).
+  device already logs it). The new Activity Log covers *changes*, not entries.
+- **Remote door unlock** — not supported yet (`AkuvoxClient` has no relay
+  trigger), so there is no `unlock` permission.
 - **PIN column** in the Directory.
 - Rotate the device web password off the setup value; keep it in Railway/Doppler.

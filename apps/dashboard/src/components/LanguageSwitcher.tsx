@@ -14,7 +14,11 @@ export default function LanguageSwitcher() {
   const [pending, startTransition] = useTransition();
 
   function choose(next: Locale) {
-    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    // Inside the portal's (cross-site) iframe a Lax cookie is dropped, so on
+    // https use the same SameSite=None + Partitioned attributes as the session.
+    const attrs =
+      location.protocol === "https:" ? "samesite=none; secure; partitioned" : "samesite=lax";
+    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 365}; ${attrs}`;
     startTransition(() => router.refresh());
   }
 
@@ -25,7 +29,7 @@ export default function LanguageSwitcher() {
         value={locale}
         disabled={pending}
         onChange={(e) => choose(e.target.value as Locale)}
-        className="rounded-md border border-stone-300 bg-white px-2 py-1 text-stone-600"
+        className="min-h-11 rounded-md border border-stone-300 bg-white px-2 py-1 text-stone-600"
       >
         {LOCALES.map((l) => (
           <option key={l} value={l}>

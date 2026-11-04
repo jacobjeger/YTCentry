@@ -23,7 +23,14 @@ export type AuditAction =
   | "staff.password"
   | "schedule.create"
   | "schedule.delete"
-  | "auth.login";
+  | "auth.login"
+  | "auth.logout"
+  | "auth.failed" // bad password / refused portal token
+  | "auth.denied" // signed in, but lacked the permission or door scope
+  | "door.add"
+  | "door.remove"
+  | "door.update"
+  | "tempPin.extend";
 
 export async function audit(opts: {
   actorId?: string | null;

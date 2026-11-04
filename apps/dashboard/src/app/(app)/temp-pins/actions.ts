@@ -3,13 +3,20 @@
 import { revalidatePath } from "next/cache";
 import {
   prisma,
-  audit,
   createTempPin,
   extendTempPin,
   revokeTempPin,
   listTempPins,
 } from "@ytc/core";
-import { requireUser } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+import { authorize, allowedDoorIds, filterDoors, requireDoors, type Access } from "@/lib/access";
+
+/** The temp PIN, if it exists and is on a door the caller may use. */
+async function scopedPin(a: Access, id: string, what: string) {
+  const tp = await prisma.tempPin.findUnique({ where: { id } });
+  if (!tp) return null;
+  return (await requireDoors(a, [tp.deviceId], what)) ? tp : null;
+}
 import { describeDeviceError } from "@/lib/device";
 import { getLocale } from "@/lib/locale";
 import { getDictionary } from "@/lib/i18n";
@@ -31,13 +38,15 @@ export interface TempPinRow {
 }
 
 export async function listTempPinsUI(): Promise<TempPinRow[]> {
-  await requireUser();
-  const [pins, devices] = await Promise.all([
+  const a = await authorize("temp_pins", "tempPins.list");
+  if (!a) return [];
+  const [pins, devices, allowed] = await Promise.all([
     listTempPins(),
     prisma.device.findMany({ select: { id: true, name: true } }),
+    allowedDoorIds(a),
   ]);
   const dn = new Map(devices.map((d) => [d.id, d.name]));
-  return pins.map((p) => ({
+  return pins.filter((p) => allowed === null || allowed.has(p.deviceId)).map((p) => ({
     id: p.id,
     label: p.label,
     pin: p.pin,
@@ -54,12 +63,14 @@ export async function listTempPinsUI(): Promise<TempPinRow[]> {
 }
 
 export async function listTempDoors(): Promise<{ id: string; name: string }[]> {
-  await requireUser();
-  return prisma.device.findMany({
+  const a = await authorize("temp_pins", "tempPins.listDoors");
+  if (!a) return [];
+  const doors = await prisma.device.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
     select: { id: true, name: true },
   });
+  return filterDoors(a, doors);
 }
 
 export type TempState = { error?: string; ok?: { pin: string; label: string } };
@@ -68,8 +79,10 @@ export async function createTempPinAction(
   _prev: TempState,
   formData: FormData,
 ): Promise<TempState> {
-  const user = await requireUser();
+  const a = await authorize("temp_pins", "tempPins.create");
   const t = getDictionary(await getLocale());
+  if (!a) return { error: t.common.noPermission };
+  const user = a.user;
   const label = String(formData.get("label") ?? "").trim();
   const deviceId = String(formData.get("deviceId") ?? "");
   const customPin = String(formData.get("pin") ?? "").trim();
@@ -77,6 +90,9 @@ export async function createTempPinAction(
   const endsRaw = String(formData.get("endsAt") ?? "").trim();
   if (!label) return { error: t.temp.needLabel };
   if (!deviceId) return { error: t.temp.needDoor };
+  if (!(await requireDoors(a, [deviceId], "tempPins.create"))) {
+    return { error: t.common.noPermission };
+  }
   if (customPin && !/^\d{4,6}$/.test(customPin)) {
     return { error: t.temp.badPin };
   }
@@ -130,7 +146,7 @@ export async function createTempPinAction(
       action: "enrollee.create",
       targetType: "TempPin",
       targetId: String(userId),
-      meta: { label, startsAt, expiresAt },
+      meta: { label, deviceId, startsAt, expiresAt, recurring: recurring ?? null },
     });
     revalidatePath("/temp-pins");
     return { ok: { pin, label } };
@@ -140,23 +156,36 @@ export async function createTempPinAction(
 }
 
 export async function extendTempPinAction(formData: FormData) {
-  await requireUser();
+  const a = await authorize("temp_pins", "tempPins.extend");
+  if (!a) return;
   const id = String(formData.get("id") ?? "");
-  const hours = Math.max(1, Math.min(720, Number(formData.get("hours") ?? 1)));
-  if (id) await extendTempPin(id, hours);
+  const hours = Math.max(1, Math.min(720, Number(formData.get("hours") ?? 1) || 1));
+  if (id && (await scopedPin(a, id, "tempPins.extend"))) {
+    const expiresAt = await extendTempPin(id, hours);
+    await audit({
+      actorId: a.user.id,
+      action: "tempPin.extend",
+      targetType: "TempPin",
+      targetId: id,
+      meta: { hours, expiresAt },
+    });
+  }
   revalidatePath("/temp-pins");
 }
 
 export async function revokeTempPinAction(formData: FormData) {
-  const user = await requireUser();
+  const a = await authorize("temp_pins", "tempPins.revoke");
+  if (!a) return;
   const id = String(formData.get("id") ?? "");
-  if (id) {
+  const tp = id ? await scopedPin(a, id, "tempPins.revoke") : null;
+  if (tp) {
     await revokeTempPin(id);
     await audit({
-      actorId: user.id,
+      actorId: a.user.id,
       action: "enrollee.remove",
       targetType: "TempPin",
       targetId: id,
+      meta: { label: tp.label, deviceId: tp.deviceId },
     });
   }
   revalidatePath("/temp-pins");

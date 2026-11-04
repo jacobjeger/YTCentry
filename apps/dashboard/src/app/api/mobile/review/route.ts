@@ -9,7 +9,7 @@
  * pick on the phone exactly as they can on the web.
  */
 import { prisma, signedPhotoUrl } from "@ytc/core";
-import { bearerUser, unauthorized } from "@/lib/mobileAuth";
+import { bearerAccess } from "@/lib/mobileAuth";
 import { PENDING_STATUSES } from "@/lib/review";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +19,8 @@ const DOOR = "door-scanner";
 const URL_TTL_SECONDS = 3600;
 
 export async function GET(request: Request) {
-  const user = await bearerUser(request);
-  if (!user) return unauthorized();
+  const access = await bearerAccess(request, "review", "mobile.review");
+  if (access instanceof Response) return access;
 
   // The app shows door checkboxes per photo, pre-ticked to the everyday doors,
   // so it needs the same door list the web card gets.

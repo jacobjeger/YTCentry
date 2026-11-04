@@ -241,14 +241,14 @@ export default function EnrollForm() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 items-start">
-          <div className="rounded-lg border border-dashed border-stone-300 p-4 min-h-[220px] flex flex-col items-center justify-center gap-3">
+          <div className="min-w-0 rounded-lg border border-dashed border-stone-300 p-4 min-h-[220px] flex flex-col items-center justify-center gap-3">
             {mode === "upload" ? (
               // Plain VISIBLE file inputs — no JS, no display:none. A hidden
               // (display:none) input is what made the fancy buttons silently
               // no-op in some browsers. On a phone, the first input's `capture`
               // opens the camera; the second opens the photo library.
               <div className="flex flex-col gap-4 w-full items-center text-sm">
-                <label className="flex flex-col items-center gap-1.5 text-stone-600">
+                <label className="flex flex-col items-center gap-1.5 text-stone-600 max-w-full">
                   <span className="font-medium">📷 {t.enroll.takePhoto}</span>
                   <input
                     type="file"
@@ -258,7 +258,7 @@ export default function EnrollForm() {
                   />
                 </label>
                 <div className="w-full border-t border-stone-100" />
-                <label className="flex flex-col items-center gap-1.5 text-stone-600">
+                <label className="flex flex-col items-center gap-1.5 text-stone-600 max-w-full">
                   <span className="font-medium">🖼️ {t.enroll.chooseGallery}</span>
                   <input
                     type="file"
