@@ -21,6 +21,9 @@ export async function bearerUser(req: Request): Promise<StaffUser | null> {
   if (!match) return null;
   const claims = await verifyToken(match[1].trim());
   if (!claims) return null;
+  // This API grants local-sign-in access. A portal session is limited to its
+  // portal perms and door scope, so its token must not work here.
+  if (claims.src === "portal") return null;
   return userFromClaims(claims);
 }
 
