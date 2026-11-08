@@ -13,6 +13,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **"Add a face" page** (`/add-face`, in the menu after Add Person): just a
+  name and a photo, and the person is added to the front door. Same permission
+  as Add Person; if the door is offline they're saved and sent once it's back.
 - **Sign in from the YTC central portal.** Staff who open Door Access from the
   portal's sidebar land signed in (`/portal-sso`), inside the portal's window.
   What they can do comes from the checkboxes on their portal page — view, add
