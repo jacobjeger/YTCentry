@@ -40,11 +40,16 @@ and never written by automation.
         │                    │  └── reads the door directly through the (public)
         │                    │      Cloudflare tunnel for sync pushes + edits
         ▼                    ▼
-  [Railway Bucket (S3)] ← face photos      [pusher (Railway worker)]
+  [Railway Bucket (S3)] ← face photos      [worker (Railway service "pusher")]
+                                             one process (apps/worker) running:
+                                             pusher (apps/pusher)
                                              • drains PushJob queue
-[ingest (Railway worker)]                    • polls denied door scans → Review Queue
-  • IMAP-polls the enrollment mailbox        • syncs the directory cache (5 min)
-  • matches photos to the roster             • expires temp PINs + old door scans
+                                             • polls denied door scans → Review Queue
+                                             • syncs the directory cache (6 h)
+                                             • expires temp PINs + old door scans
+                                             ingest (apps/ingest)
+                                             • IMAP-watches the enrollment mailbox
+                                             • matches photos to the roster
 
          Cloudflare tunnel:  https://door.<your-domain>  →  E16C (LAN)
 ```
@@ -107,7 +112,10 @@ npm run dev            # dashboard at http://localhost:3000
 ```
 
 Infra (Railway project "YTC Entry"): Postgres (+ pg_trgm), a native S3 **Bucket**
-`ytc-faces`, and the `dashboard` / `pusher` / `ingest` services. Door web
+`ytc-faces`, and two services: `dashboard`, and `pusher`, which runs
+`apps/worker` (pusher + ingest in one process, built to plain JS, Dockerfile
+`apps/worker/Dockerfile`). They were separate services until 2026-11; running
+them as one halves the memory Railway bills for. Door web
 passwords are AES-encrypted in the DB (`DEVICE_SECRET` / `SESSION_SECRET`).
 
 ---

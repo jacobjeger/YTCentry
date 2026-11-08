@@ -63,6 +63,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Lower Railway bill.** The pusher and email-ingest workers now run as one
+  service instead of two, as plain JavaScript instead of compiling TypeScript at
+  startup, and the dashboard no longer keeps an idle `npm` process alongside the
+  site. Nothing changes for staff; background memory drops by roughly half.
+  Workers now also stop within 5 seconds on deploy instead of waiting to be
+  force-killed.
+
 - **The doors are polled far less.** Both the denied-scan pull and the full
   directory reconcile now run every 6 hours, down from every minute and every
   30 minutes respectively. Denied scans therefore reach the Review Queue in the
