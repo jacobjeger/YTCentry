@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 > Nothing has been tagged yet. `package.json` carries `0.1.0`, but no release
 > was ever cut, so every change below is still unreleased. Production is
-> deployed straight from `main` with `railway up` — see the deploy notes in the
+> deployed automatically on every push to `main` — see the deploy notes in the
 > README.
 
 ## [Unreleased]
