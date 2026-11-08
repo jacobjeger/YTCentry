@@ -35,6 +35,7 @@ export default function AppShell({
   const items: { href: string; label: string; perm?: string; adminOnly?: boolean }[] = [
     { href: "/", label: t.nav.home },
     { href: "/enroll", label: t.nav.enroll, perm: "enroll" },
+    { href: "/add-face", label: t.nav.addFace, perm: "enroll" },
     { href: "/review", label: t.nav.review, perm: "review" },
     { href: "/roster", label: t.nav.roster, perm: "roster" },
     { href: "/directory", label: t.nav.directory, perm: "view" },

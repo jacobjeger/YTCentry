@@ -23,6 +23,7 @@ export interface Dict {
   nav: {
     home: string;
     enroll: string;
+    addFace: string;
     review: string;
     roster: string;
     directory: string;
@@ -344,6 +345,18 @@ export interface Dict {
     selectAll: string;
     rejectSelected: string;
   };
+  /** Add a face (/add-face): the plain name + photo page that adds someone to the front door. */
+  addFace: {
+    title: string;
+    subtitle: string;
+    nameHint: string;
+    photoTips: string;
+    add: string;
+    adding: string;
+    doneTitle: string;
+    doneBody: string;
+    noFrontDoor: string;
+  };
   directory: {
     title: string;
     subtitle: string;
@@ -466,6 +479,7 @@ const en: Dict = {
   nav: {
     home: "Home",
     enroll: "Add Person",
+    addFace: "Add a face",
     review: "Review Queue",
     roster: "Roster",
     directory: "Directory",
@@ -806,6 +820,17 @@ const en: Dict = {
     rejectSelected: "Reject {n}",
     submissionAlt: "Submitted photo",
   },
+  addFace: {
+    title: "Add a face",
+    subtitle: "Name and a photo of the face – they're added to the front door.",
+    nameHint: "In English, as it should appear on the door",
+    photoTips: "Face the camera, good light, no hat or sunglasses.",
+    add: "Add to the front door",
+    adding: "Adding…",
+    doneTitle: "{name} was added to the front door.",
+    doneBody: "Their face opens the front door now.",
+    noFrontDoor: "No front door is set up. Ask the admin.",
+  },
   directory: {
     title: "Directory",
     subtitle:
@@ -931,6 +956,7 @@ const he: Dict = {
   nav: {
     home: "בית",
     enroll: "הוספת אדם",
+    addFace: "הוספת פנים",
     review: "תור לאישור",
     roster: "רשימת תלמידים",
     directory: "מדריך",
@@ -1265,6 +1291,17 @@ const he: Dict = {
     selectAll: "בחר הכל",
     rejectSelected: "דחה {n}",
     submissionAlt: "תמונה שהוגשה",
+  },
+  addFace: {
+    title: "הוספת פנים",
+    subtitle: "שם ותמונת פנים – והאדם נוסף לדלת הראשית.",
+    nameHint: "באנגלית, כמו שיופיע בדלת",
+    photoTips: "פנים ישר למצלמה, אור טוב, בלי כובע ובלי משקפי שמש.",
+    add: "הוספה לדלת הראשית",
+    adding: "מוסיף…",
+    doneTitle: "{name} נוסף לדלת הראשית.",
+    doneBody: "הפנים שלו פותחות עכשיו את הדלת הראשית.",
+    noFrontDoor: "לא מוגדרת דלת ראשית. פנו למנהל.",
   },
   directory: {
     title: "מדריך",
