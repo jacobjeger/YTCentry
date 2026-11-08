@@ -1,0 +1,21 @@
+{
+  "name": "@ytc/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runs the pusher and ingest workers in one process, so Railway pays for one service instead of two. Built to plain JavaScript; no TypeScript compiler at runtime.",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node dist/index.mjs",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@ytc/core": "*",
+    "@ytc/ingest": "*",
+    "@ytc/pusher": "*"
+  },
+  "devDependencies": {
+    "esbuild": "~0.28.0",
+    "tsx": "^4.19.2"
+  }
+}

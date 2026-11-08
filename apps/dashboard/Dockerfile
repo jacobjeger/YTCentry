@@ -13,5 +13,8 @@ RUN npm run db:generate
 RUN npm run build -w apps/dashboard
 
 # Runtime: production mode (secure cookies, etc). Railway injects PORT.
+# Run Next directly: an `npm run start` wrapper is a second Node process that
+# sits in memory doing nothing. Next reads PORT from the environment.
 ENV NODE_ENV=production
-CMD ["npm", "run", "start", "-w", "apps/dashboard"]
+WORKDIR /app/apps/dashboard
+CMD ["node", "../../node_modules/next/dist/bin/next", "start"]
