@@ -86,7 +86,8 @@ export const TILES = [
   { key: "main", label: "Door Access", label_he: "בקרת כניסה", path: "/", icon: "door-open", perm: "view" },
   { key: "directory", label: "People", label_he: "אנשים", path: "/directory", icon: "users", perm: "view" },
   { key: "enroll", label: "Add Person", label_he: "הוספת אדם", path: "/enroll", icon: "user-plus", perm: "enroll" },
-  { key: "add_face", label: "Add a face", label_he: "הוספת פנים", path: "/add-face", icon: "scan-face", perm: "enroll" },
+  // its own item in the portal (menu and home), not inside the Door Access group
+  { key: "add_face", label: "Add a face", label_he: "הוספת פנים", path: "/add-face", icon: "scan-face", perm: "enroll", own: true },
   { key: "review", label: "Review Queue", label_he: "תור בדיקה", path: "/review", icon: "scan-face", perm: "review" },
   { key: "roster", label: "Roster", label_he: "רשימת תלמידים", path: "/roster", icon: "clipboard-list", perm: "roster" },
   { key: "temp_pins", label: "Temp PINs", label_he: "קודים זמניים", path: "/temp-pins", icon: "key-round", perm: "temp_pins" },
@@ -99,6 +100,7 @@ export const TILES = [
   path: string;
   icon: string;
   perm: Perm;
+  own?: boolean;
 }[];
 
 /** Hebrew names for the doors we know; anything else falls back to its own name. */

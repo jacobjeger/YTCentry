@@ -23,7 +23,6 @@ export interface Dict {
   nav: {
     home: string;
     enroll: string;
-    addFace: string;
     review: string;
     roster: string;
     directory: string;
@@ -479,7 +478,6 @@ const en: Dict = {
   nav: {
     home: "Home",
     enroll: "Add Person",
-    addFace: "Add a face",
     review: "Review Queue",
     roster: "Roster",
     directory: "Directory",
@@ -956,7 +954,6 @@ const he: Dict = {
   nav: {
     home: "בית",
     enroll: "הוספת אדם",
-    addFace: "הוספת פנים",
     review: "תור לאישור",
     roster: "רשימת תלמידים",
     directory: "מדריך",
