@@ -6,13 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 > Nothing has been tagged yet. `package.json` carries `0.1.0`, but no release
 > was ever cut, so every change below is still unreleased. Production is
-> deployed straight from `main` with `railway up` — see the deploy notes in the
+> deployed automatically on every push to `main` — see the deploy notes in the
 > README.
 
 ## [Unreleased]
 
 ### Added
 
+- **"Add a face" page** (`/add-face`, in the menu after Add Person): just a
+  name and a photo, and the person is added to the front door. Same permission
+  as Add Person; if the door is offline they're saved and sent once it's back.
 - **Sign in from the YTC central portal.** Staff who open Door Access from the
   portal's sidebar land signed in (`/portal-sso`), inside the portal's window.
   What they can do comes from the checkboxes on their portal page — view, add

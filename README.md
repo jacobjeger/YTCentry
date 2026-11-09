@@ -93,8 +93,16 @@ of this, including CF Access headers and session re-login.
   sync, temp-PIN + door-scan expiry.
 - `apps/ingest` — Gmail IMAP worker: matches emailed photos to the roster.
 
-Each app deploys to Railway from `apps/<name>/Dockerfile` (built from the repo
-root) via `RAILWAY_DOCKERFILE_PATH`.
+Each Railway service builds from a Dockerfile (from the repo root) set by
+`RAILWAY_DOCKERFILE_PATH`: `dashboard` → `apps/dashboard/Dockerfile`, `pusher` →
+`apps/worker/Dockerfile` (pusher + ingest in one process). The `ingest` service
+is retired.
+
+**Deploys are automatic:** both services redeploy on every push to `main` that
+touches their files (watch paths: `apps/dashboard/**` for the dashboard,
+`apps/worker|pusher|ingest/**` for the worker, and `packages/core/**` plus the
+root package files for both). Database migrations are **not** run by a deploy:
+apply them before pushing code that needs them.
 
 ---
 
